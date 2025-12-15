@@ -1,0 +1,49 @@
+[
+    {
+        "type": "function",
+        "function": {
+            "name": "check_emergency_status",
+            "description": "Analyzes the user's issue to determine if it is an emergency.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "issue_description": {
+                        "type": "string",
+                        "description": "The full description of the HVAC issue provided by the caller."
+                    },
+                    "caller_zip_code": {
+                        "type": "string",
+                        "description": "The zip code of the caller's location to check local weather conditions."
+                    }
+                },
+                "required": [
+                    "issue_description"
+                ]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "send_listing_info",
+            "description": "Sends an SMS with the luxury listing details to the caller.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "listing_id": {
+                        "type": "string",
+                        "description": "The ID of the listing the caller is interested in."
+                    },
+                    "phone_number": {
+                        "type": "string",
+                        "description": "The caller's phone number to send the SMS to."
+                    }
+                },
+                "required": [
+                    "listing_id",
+                    "phone_number"
+                ]
+            }
+        }
+    }
+]
