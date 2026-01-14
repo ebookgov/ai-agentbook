@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: ebookgov-webhook
+    runtime: node
+    rootDir: webhook
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_PROJECT_URL
+        sync: false
+      - key: SUPABASE_ACCESS_SECRET_KEY
+        sync: false
+      - key: TEXT_NOW_PHONE_NUMBER
+        sync: false
+    healthCheckPath: /health

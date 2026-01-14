@@ -4,3 +4,5 @@ supabase/index.js
 .env
 .env.*
 Ebgov_Tools.md
+node_modules/
+*.log
