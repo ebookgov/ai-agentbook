@@ -272,7 +272,7 @@ async function handleTransferToHuman(parameters, fullPayload) {
     }
 
     const callId = fullPayload?.message?.call?.id || `CALL-${Date.now()}`;
-    const textNowPhone = process.env.TEXTNOW_PHONE;
+    const textNowPhone = process.env.TEXT_NOW_PHONE_NUMBER;
 
     console.log(`Transfer requested - Caller: ${callerName}, Reason: ${reason}`);
 

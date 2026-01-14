@@ -297,7 +297,8 @@ In Vapi Dashboard → **Advanced Settings**
   "maxDurationSeconds": 600,
   "backgroundSound": "off",
   "backchannelingEnabled": true,
-  "responseDelaySeconds": 0.5,
+  "responseDelaySeconds": 0,
+  "llmRequestDelaySeconds": 0,
   "interruptionsEnabled": true,
   "endCallFunctionEnabled": true,
   "recordingEnabled": true,
@@ -310,7 +311,8 @@ In Vapi Dashboard → **Advanced Settings**
 - `maxDurationSeconds: 600` - Max 10 minutes per call
 - `backgroundSound: off` - Don't add background ambience
 - `backchannelingEnabled: true` - Allow AI to make filler sounds (mm-hmm)
-- `responseDelaySeconds: 0.5` - 500ms delay before response (feels natural)
+- `responseDelaySeconds: 0` - No delay before response (lowest latency)
+- `llmRequestDelaySeconds: 0` - No delay before LLM request (lowest latency)
 - `interruptionsEnabled: true` - Caller can interrupt AI mid-sentence
 - `endCallFunctionEnabled: true` - Allow function to end call
 - `recordingEnabled: true` - Record all calls for compliance/review
