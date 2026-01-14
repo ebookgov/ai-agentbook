@@ -14,8 +14,8 @@
     ]
   },
   "voice": {
-    "provider": "deepgram",
-    "voiceId": "asteria"
+    "provider": "vapi",
+    "voiceId": "Elliot"
   },
   "transcriber": {
     "provider": "deepgram",

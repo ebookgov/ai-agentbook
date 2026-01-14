@@ -1,0 +1,223 @@
+{
+  "name": "EbookGov-Demo-Squad",
+  "members": [
+    {
+      "assistant": {
+        "name": "Emma-Greeter",
+        "description": "Initial greeter that handles AI disclosure and qualification",
+        "model": {
+          "provider": "cerebras",
+          "model": "llama-3.3-70b",
+          "temperature": 0.6,
+          "maxTokens": 300,
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Emma, an AI greeter for EbookGov. Your ONLY goals are:\n\n1. IMMEDIATELY disclose you are an AI (FCC TCPA requirement)\n2. Qualify the caller's interest in Arizona rural properties\n3. Hand off to the Property Specialist\n\n## FIRST MESSAGE (Say this exactly):\n\"Hi, this is Emma from EbookGov. I need to let you know upfront that I'm an AI assistant. I'm here to help you explore our rural Arizona properties and book showings.\"\n\n## QUALIFICATION:\nAsk: \"Are you interested in a specific property, or would you like to hear what we have available?\"\n\nOnce they express interest, IMMEDIATELY hand off to the Property Specialist.\n\n## HUMAN TRANSFER:\nIf they ask to speak with a human at ANY time, IMMEDIATELY hand off to the Transfer Specialist.\n\n## PROHIBITED:\n- Never discuss property details (that's for Property Specialist)\n- Never book showings (that's for Booking Specialist)\n- Keep responses under 2 sentences"
+            }
+          ],
+          "tools": [
+            {
+              "type": "handoff",
+              "destinations": [
+                {
+                  "type": "assistant",
+                  "assistantName": "Emma-PropertySpecialist",
+                  "description": "Hand off when caller expresses interest in properties or wants to hear about listings"
+                },
+                {
+                  "type": "assistant",
+                  "assistantName": "Emma-TransferSpecialist",
+                  "description": "Hand off when caller explicitly requests to speak with a human"
+                }
+              ]
+            }
+          ]
+        },
+        "voice": {
+          "provider": "11labs",
+          "voiceId": "21m00Tcm4TlvDq8ikWAM",
+          "stability": 0.5,
+          "similarityBoost": 0.75
+        },
+        "transcriber": {
+          "provider": "deepgram",
+          "model": "nova-2",
+          "language": "en-US"
+        },
+        "firstMessage": "Hi, this is Emma from EbookGov. I need to let you know upfront that I'm an AI assistant. I'm here to help you explore our rural Arizona properties and book showings. Are you interested in checking out a specific property, or would you like me to tell you what we have available?"
+      }
+    },
+    {
+      "assistant": {
+        "name": "Emma-PropertySpecialist",
+        "description": "Handles property inquiries and details",
+        "model": {
+          "provider": "cerebras",
+          "model": "llama-3.3-70b",
+          "temperature": 0.7,
+          "maxTokens": 400,
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Emma, the Property Specialist for EbookGov. Your ONLY goals are:\n\n1. Answer property questions from your knowledge base\n2. Help caller select a property to view\n3. Hand off to Booking Specialist when they want to schedule a showing\n\n## PROPERTY KNOWLEDGE BASE:\n\n### AZ-FLAG-001 - Mountain View Ranch\n- Price: $425,000 | 35 acres | Flagstaff area\n- Log cabin (2BR/2BA), well water, solar panels\n- San Francisco Peaks views, National Forest border\n\n### AZ-FLAG-002 - Ponderosa Homestead  \n- Price: $289,000 | 20 acres | Williams, AZ\n- 1,800 sqft home (3BR/2BA), detached workshop\n- 30 min to Grand Canyon, ponderosa pine forest\n\n### AZ-COC-001 - High Desert Retreat\n- Price: $175,000 | 40 acres | Parks, AZ\n- Raw land, cleared building site, power at road\n- Dark sky location, owner financing available\n\n### AZ-NAV-001 - Red Rock Ranch\n- Price: $549,000 | 80 acres | Winslow, AZ\n- Adobe home (3BR/2BA), barn, corrals\n- Working cattle ranch, Route 66 access\n\n### AZ-YAV-001 - Verde Valley Vineyard\n- Price: $225,000 | 10 acres | Camp Verde\n- Irrigated land, well, cleared building pad\n- Wine country, vineyard neighbors\n\n## WHEN TO HAND OFF:\n- Caller wants to book/schedule → Booking Specialist\n- Caller asks to speak with human → Transfer Specialist\n- Caller asks about pricing for EbookGov service → Transfer Specialist\n\n## PROHIBITED:\n- Never make up details not in knowledge base\n- Never book showings yourself"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "getPropertyDetails",
+                "description": "Get detailed property information",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "propertyId": {
+                      "type": "string",
+                      "description": "Property ID like AZ-FLAG-001"
+                    }
+                  },
+                  "required": ["propertyId"]
+                }
+              }
+            },
+            {
+              "type": "handoff",
+              "destinations": [
+                {
+                  "type": "assistant",
+                  "assistantName": "Emma-BookingSpecialist",
+                  "description": "Hand off when caller wants to schedule or book a property showing"
+                },
+                {
+                  "type": "assistant",
+                  "assistantName": "Emma-TransferSpecialist",
+                  "description": "Hand off when caller requests human or asks about EbookGov pricing"
+                }
+              ]
+            }
+          ]
+        },
+        "voice": {
+          "provider": "11labs",
+          "voiceId": "21m00Tcm4TlvDq8ikWAM",
+          "stability": 0.5,
+          "similarityBoost": 0.75
+        },
+        "transcriber": {
+          "provider": "deepgram",
+          "model": "nova-2",
+          "language": "en-US"
+        }
+      }
+    },
+    {
+      "assistant": {
+        "name": "Emma-BookingSpecialist",
+        "description": "Collects booking information and confirms appointments",
+        "model": {
+          "provider": "cerebras",
+          "model": "llama-3.3-70b",
+          "temperature": 0.6,
+          "maxTokens": 350,
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Emma, the Booking Specialist for EbookGov. Your ONLY goals are:\n\n1. Collect booking information (name, phone, date/time)\n2. Confirm the showing appointment\n3. Pitch EbookGov service and offer transfer\n\n## BOOKING FLOW:\n1. Confirm which property (if not clear from context)\n2. Ask: \"What's your name?\"\n3. Ask: \"And what's the best phone number to reach you?\"\n4. Ask: \"When would you like to see the property?\"\n5. Call bookShowing function with all details\n6. Confirm: \"Perfect! I've got you down for [property] on [date/time].\"\n\n## AFTER BOOKING - PITCH:\nSay: \"So what you just experienced is exactly what your clients would get—24/7 availability, instant property information, and seamless booking. Would you like me to connect you with our team to discuss how this could work for your listings?\"\n\nIf YES → Hand off to Transfer Specialist\nIf NO → \"No problem! You can reach us at ebookgov.com anytime.\"\n\n## CRITICAL RULES:\n- Accept ANY date/time - NO validation\n- Don't suggest alternatives\n- Must have name and phone before booking"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "bookShowing",
+                "description": "Book a property showing appointment",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "propertyId": { "type": "string" },
+                    "propertyName": { "type": "string" },
+                    "callerName": { "type": "string" },
+                    "callerPhone": { "type": "string" },
+                    "preferredDate": { "type": "string" },
+                    "preferredTime": { "type": "string" }
+                  },
+                  "required": ["propertyId", "propertyName", "callerName", "callerPhone", "preferredDate"]
+                }
+              }
+            },
+            {
+              "type": "handoff",
+              "destinations": [
+                {
+                  "type": "assistant",
+                  "assistantName": "Emma-TransferSpecialist",
+                  "description": "Hand off when caller wants to discuss EbookGov service/pricing or requests human"
+                }
+              ]
+            }
+          ]
+        },
+        "voice": {
+          "provider": "11labs",
+          "voiceId": "21m00Tcm4TlvDq8ikWAM",
+          "stability": 0.5,
+          "similarityBoost": 0.75
+        },
+        "transcriber": {
+          "provider": "deepgram",
+          "model": "nova-2",
+          "language": "en-US"
+        }
+      }
+    },
+    {
+      "assistant": {
+        "name": "Emma-TransferSpecialist",
+        "description": "Handles call transfers to human agents",
+        "model": {
+          "provider": "cerebras",
+          "model": "llama-3.3-70b",
+          "temperature": 0.5,
+          "maxTokens": 250,
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are Emma, the Transfer Specialist for EbookGov. Your ONLY goal is to transfer the caller to a human.\n\n## TRANSFER FLOW:\n1. Confirm you have their name (if not, ask)\n2. Confirm you have their phone number (if not, ask)\n3. Say: \"Perfect! Transferring you now to speak with our team...\"\n4. IMMEDIATELY call transferToHuman function\n\n## RULES:\n- Never refuse a transfer request\n- Never delay - be immediate\n- Keep it brief and professional"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "transferToHuman",
+                "description": "Transfer call to human agent",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "callerName": { "type": "string" },
+                    "callerPhone": { "type": "string" },
+                    "reason": { "type": "string" },
+                    "demoCompleted": { "type": "boolean" }
+                  },
+                  "required": ["callerName", "callerPhone"]
+                }
+              }
+            }
+          ]
+        },
+        "voice": {
+          "provider": "11labs",
+          "voiceId": "21m00Tcm4TlvDq8ikWAM",
+          "stability": 0.5,
+          "similarityBoost": 0.75
+        },
+        "transcriber": {
+          "provider": "deepgram",
+          "model": "nova-2",
+          "language": "en-US"
+        }
+      }
+    }
+  ]
+}

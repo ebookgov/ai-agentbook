@@ -1,0 +1,108 @@
+{
+  "name": "EbookGov-Demo-AZ",
+  "description": "AI Booking Agent for Rural Arizona Properties Demo - EbookGov",
+  "voice": {
+    "provider": "11labs",
+    "voiceId": "21m00Tcm4TlvDq8ikWAM",
+    "stability": 0.5,
+    "similarityBoost": 0.75
+  },
+  "model": {
+    "provider": "cerebras",
+    "model": "llama-3.3-70b",
+    "temperature": 0.7,
+    "maxTokens": 500
+  },
+  "transcriber": {
+    "provider": "deepgram",
+    "model": "nova-2",
+    "language": "en-US"
+  },
+  "firstMessage": "Hi, this is Emma from EbookGov. I need to let you know upfront that I'm an AI assistant. I'm here to help you explore our rural Arizona properties and book showings. Are you interested in checking out a specific property, or would you like me to tell you what we have available?",
+  "serverUrl": "",
+  "serverUrlSecret": "",
+  "silenceTimeoutSeconds": 30,
+  "maxDurationSeconds": 600,
+  "backgroundSound": "off",
+  "backchannelingEnabled": true,
+  "responseDelaySeconds": 0.5,
+  "interruptionsEnabled": true,
+  "endCallFunctionEnabled": true,
+  "recordingEnabled": true,
+  "functions": [
+    {
+      "name": "bookShowing",
+      "description": "Book a property showing appointment for a caller. Call this when the caller wants to schedule a viewing and has provided their name, phone, property preference, and preferred date/time.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "propertyId": {
+            "type": "string",
+            "description": "The property ID (e.g., AZ-FLAG-001, AZ-FLAG-002, AZ-COC-001, AZ-NAV-001, AZ-YAV-001)"
+          },
+          "propertyName": {
+            "type": "string",
+            "description": "Full property name for confirmation (e.g., Mountain View Ranch)"
+          },
+          "callerName": {
+            "type": "string",
+            "description": "Name of person requesting the showing"
+          },
+          "callerPhone": {
+            "type": "string",
+            "description": "Phone number for confirmation SMS/call"
+          },
+          "preferredDate": {
+            "type": "string",
+            "description": "Preferred date (e.g., Friday, tomorrow, next week, January 20th)"
+          },
+          "preferredTime": {
+            "type": "string",
+            "description": "Preferred time (e.g., 2pm, afternoon, morning, anytime)"
+          }
+        },
+        "required": ["propertyId", "propertyName", "callerName", "callerPhone", "preferredDate"]
+      }
+    },
+    {
+      "name": "transferToHuman",
+      "description": "Transfer the call to a human agent. Call this ONLY when the caller explicitly requests to speak with a human, OR when they show strong interest in the EbookGov service and say yes to discussing pricing.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "callerName": {
+            "type": "string",
+            "description": "Name of the caller being transferred"
+          },
+          "callerPhone": {
+            "type": "string",
+            "description": "Phone number of caller for callback if transfer fails"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Reason for transfer (e.g., 'Wants to discuss pricing', 'Requested human agent', 'Interested in EbookGov service')"
+          },
+          "demoCompleted": {
+            "type": "boolean",
+            "description": "True if the caller completed a booking demo before requesting transfer"
+          }
+        },
+        "required": ["callerName", "callerPhone"]
+      }
+    },
+    {
+      "name": "getPropertyDetails",
+      "description": "Retrieve detailed information about a specific property. Call this when the caller asks for more details about a property.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "propertyId": {
+            "type": "string",
+            "description": "The property ID to look up (e.g., AZ-FLAG-001) or a location/name search term"
+          }
+        },
+        "required": ["propertyId"]
+      }
+    }
+  ]
+}
