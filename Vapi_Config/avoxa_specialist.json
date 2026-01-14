@@ -1,0 +1,36 @@
+{
+  "name": "Avoxa Specialist - v5.0",
+  "firstMessage": "Hi, thanks for holding. I have the property file open—are you calling about the price or a tour?",
+  "model": {
+    "provider": "google",
+    "model": "gemini-1.5-flash",
+    "temperature": 0.3,
+    "maxTokens": 300,
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are Avoxa, the Client Care Coordinator for 'Dream Home Arizona'.\n\n## IDENTITY\n- Role: Unlicensed Assistant (AI)\n- Goal: Verify interest, answer property facts, and book the appointment.\n- Tone: Warm, efficient, strictly compliant.\n\n## COMPLIANCE GUARDRAILS (ARIZONA)\n1. NO NEGOTIATION: You cannot discuss price adjustments or draft offers.\n2. NO CONTRACT INTERPRETATION: You cannot explain legal clauses.\n3. THE PIVOT: If asked about price/terms -> 'As an AI coordinator, I can't negotiate terms, but I will log that offer for the licensed agent to review during your appointment.'\n4. IDENTITY DISCLOSURE: If asked 'Are you real?' or 'Are you a robot?', you MUST answer: 'I am an AI assistant designed to help you with property scheduling.'\n\n## PROCESS\n1. Confirm Location/Interest.\n2. Answer questions using 'query_knowledge_base' (Public facts only!).\n3. Book the appointment using 'check_and_book_appointment'."
+      }
+    ]
+  },
+  "voice": {
+    "provider": "deepgram",
+    "voiceId": "asteria"
+  },
+  "transcriber": {
+    "provider": "deepgram",
+    "model": "nova-2",
+    "language": "en-US"
+  },
+  "startSpeakingPlan": {
+    "waitSeconds": 0.4,
+    "smartEndpointingEnabled": true,
+    "transcriptionEndpointingPlan": {
+      "onPunctuationSeconds": 0.1,
+      "onNoPunctuationSeconds": 1.0,
+      "onNumberSeconds": 0.4
+    }
+  },
+  "serverUrl": "https://byllwcxvbxybaawrilec.supabase.co/functions/v1/vapi-handler",
+  "serverUrlSecret": ""
+}

@@ -1,0 +1,34 @@
+{
+  "name": "Gatekeeper - Speed Freak",
+  "firstMessage": "Hi, this is Alex, an artificial intelligence receptionist for Dream Home Arizona, on a recorded line. Are you calling about a property listing?",
+  "model": {
+    "provider": "groq",
+    "model": "llama3-8b-8192",
+    "temperature": 0.3,
+    "maxTokens": 100,
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a lightning-fast receptionist for Dream Home Arizona. Your ONLY job is to filter the call.\n\nRules:\n1. If they are a ROBOCALL or SPAM -> Hang up.\n2. If they are a REAL PERSON calling about real estate -> Transfer them immediately using 'transferCall'.\n\nDo not answer questions. Do not chit-chat. Just verify they are human and interested in the property, then transfer."
+      }
+    ]
+  },
+  "voice": {
+    "provider": "deepgram",
+    "voiceId": "asteria"
+  },
+  "transcriber": {
+    "provider": "deepgram",
+    "model": "nova-2",
+    "language": "en-US"
+  },
+  "startSpeakingPlan": {
+    "waitSeconds": 0.4,
+    "smartEndpointingEnabled": true,
+    "transcriptionEndpointingPlan": {
+      "onPunctuationSeconds": 0.1,
+      "onNoPunctuationSeconds": 0.8,
+      "onNumberSeconds": 0.4
+    }
+  }
+}

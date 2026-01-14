@@ -1,0 +1,18 @@
+{
+  "name": "Dream Home Intake Squad v5.0",
+  "members": [
+    {
+      "assistantId": "2bf030cb-e770-4dc8-b3a0-aa06a394c0a8",
+      "assistantDestinations": [
+        {
+          "type": "assistant",
+          "assistantId": "fab7e144-02c3-46e9-b2d6-33d57322c2c3",
+          "description": "Transfer to Avoxa for complex inquiries"
+        }
+      ]
+    },
+    {
+      "assistantId": "fab7e144-02c3-46e9-b2d6-33d57322c2c3"
+    }
+  ]
+}

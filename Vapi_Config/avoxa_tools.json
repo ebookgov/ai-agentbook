@@ -1,0 +1,69 @@
+{
+  "tools": [
+    {
+      "type": "function",
+      "name": "check_availability",
+      "description": "Check available appointment slots from the calendar. Call this when the caller wants to schedule a property showing or appointment.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "server": {
+        "url": "https://byllwcxvbxybaawrilec.supabase.co/functions/v1/vapi-handler"
+      }
+    },
+    {
+      "type": "function",
+      "name": "book_appointment",
+      "description": "Book an appointment slot for the caller. Requires their name, email, and the selected time slot.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Full name of the caller"
+          },
+          "email": {
+            "type": "string",
+            "description": "Email address for calendar invite"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone number of the caller"
+          },
+          "slot_time": {
+            "type": "string",
+            "description": "The ISO datetime of the selected slot"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Any notes about the appointment"
+          }
+        },
+        "required": ["name", "email", "slot_time"]
+      },
+      "server": {
+        "url": "https://byllwcxvbxybaawrilec.supabase.co/functions/v1/vapi-handler"
+      }
+    },
+    {
+      "type": "function",
+      "name": "query_knowledge_base",
+      "description": "Look up property facts like solar lease details, HOA fees, water source, or school districts.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "The topic to look up: solar_lease, hauled_water, hoa_fees, schools, price, square_footage"
+          }
+        },
+        "required": ["topic"]
+      },
+      "server": {
+        "url": "https://byllwcxvbxybaawrilec.supabase.co/functions/v1/vapi-handler"
+      }
+    }
+  ]
+}
