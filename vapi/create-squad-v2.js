@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 
 const VAPI_API_KEY = process.env.VAPI_PRIVATE_KEY?.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----/g, '').trim();
-const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://susanna-unfed-nathaly.ngrok-free.dev/api/vapi/webhook';
+const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://ai-agentbook.onrender.com/api/vapi/webhook';
 
 if (!VAPI_API_KEY) {
   console.error('❌ VAPI_PRIVATE_KEY not found in .env');

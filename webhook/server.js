@@ -8,6 +8,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
 require('dotenv').config({ path: '../.env' });
 
 const app = express();
@@ -459,6 +460,217 @@ app.get('/api/bookings', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// ============================================================
+// PayPal Webhook Endpoint
+// ============================================================
+
+// PayPal Webhook Signature Verification
+async function verifyPayPalWebhook(req) {
+  const webhookId = process.env.PAYPAL_WEBHOOK_ID;
+  if (!webhookId) {
+    console.warn('⚠️  PAYPAL_WEBHOOK_ID not set - skipping signature verification');
+    return true; // Allow in dev mode
+  }
+
+  const transmissionId = req.headers['paypal-transmission-id'];
+  const transmissionTime = req.headers['paypal-transmission-time'];
+  const certUrl = req.headers['paypal-cert-url'];
+  const transmissionSig = req.headers['paypal-transmission-sig'];
+  const authAlgo = req.headers['paypal-auth-algo'];
+
+  if (!transmissionId || !transmissionTime || !transmissionSig) {
+    console.error('Missing PayPal signature headers');
+    return false;
+  }
+
+  // For production, you should verify the signature using PayPal's API
+  // For now, we'll do a basic check that headers exist
+  // Full verification requires calling PayPal's /v1/notifications/verify-webhook-signature
+  console.log(`PayPal webhook received: ${transmissionId}`);
+  return true;
+}
+
+// PayPal Webhook Handler
+app.post('/api/paypal/webhook', async (req, res) => {
+  try {
+    console.log('PayPal Webhook received:', JSON.stringify(req.body, null, 2));
+
+    // Verify webhook signature
+    const isValid = await verifyPayPalWebhook(req);
+    if (!isValid) {
+      console.error('Invalid PayPal webhook signature');
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
+    const eventType = req.body.event_type;
+    const resource = req.body.resource;
+
+    console.log(`Processing PayPal event: ${eventType}`);
+
+    switch (eventType) {
+      case 'BILLING.SUBSCRIPTION.ACTIVATED':
+        await handleSubscriptionActivated(resource);
+        break;
+
+      case 'BILLING.SUBSCRIPTION.CANCELLED':
+        await handleSubscriptionCancelled(resource);
+        break;
+
+      case 'BILLING.SUBSCRIPTION.SUSPENDED':
+        await handleSubscriptionSuspended(resource);
+        break;
+
+      case 'PAYMENT.SALE.COMPLETED':
+        await handlePaymentCompleted(resource);
+        break;
+
+      case 'BILLING.SUBSCRIPTION.PAYMENT.FAILED':
+        await handlePaymentFailed(resource);
+        break;
+
+      default:
+        console.log(`Unhandled PayPal event type: ${eventType}`);
+    }
+
+    // Always respond 200 to PayPal
+    res.status(200).json({ received: true });
+
+  } catch (error) {
+    console.error('PayPal webhook error:', error);
+    // Still return 200 to prevent PayPal from retrying
+    res.status(200).json({ received: true, error: error.message });
+  }
+});
+
+// Handler: Subscription Activated
+async function handleSubscriptionActivated(resource) {
+  const subscriptionId = resource.id;
+  const planId = resource.plan_id;
+  const subscriberEmail = resource.subscriber?.email_address;
+  const startTime = resource.start_time;
+
+  console.log(`✅ Subscription activated: ${subscriptionId} for ${subscriberEmail}`);
+
+  if (supabase) {
+    const { error } = await supabase
+      .from('subscriptions')
+      .upsert({
+        subscription_id: subscriptionId,
+        user_email: subscriberEmail,
+        status: 'active',
+        plan_id: planId,
+        start_time: startTime,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'subscription_id' });
+
+    if (error) {
+      console.error('Supabase error (subscription activated):', error);
+    } else {
+      console.log(`Subscription ${subscriptionId} saved to database`);
+    }
+  }
+}
+
+// Handler: Subscription Cancelled
+async function handleSubscriptionCancelled(resource) {
+  const subscriptionId = resource.id;
+
+  console.log(`❌ Subscription cancelled: ${subscriptionId}`);
+
+  if (supabase) {
+    const { error } = await supabase
+      .from('subscriptions')
+      .update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString()
+      })
+      .eq('subscription_id', subscriptionId);
+
+    if (error) {
+      console.error('Supabase error (subscription cancelled):', error);
+    }
+  }
+}
+
+// Handler: Subscription Suspended
+async function handleSubscriptionSuspended(resource) {
+  const subscriptionId = resource.id;
+
+  console.log(`⏸️ Subscription suspended: ${subscriptionId}`);
+
+  if (supabase) {
+    const { error } = await supabase
+      .from('subscriptions')
+      .update({
+        status: 'suspended',
+        updated_at: new Date().toISOString()
+      })
+      .eq('subscription_id', subscriptionId);
+
+    if (error) {
+      console.error('Supabase error (subscription suspended):', error);
+    }
+  }
+}
+
+// Handler: Payment Completed (recurring payment success)
+async function handlePaymentCompleted(resource) {
+  const billingAgreementId = resource.billing_agreement_id;
+  const amount = resource.amount?.total;
+  const currency = resource.amount?.currency;
+
+  console.log(`💰 Payment completed: ${amount} ${currency} for subscription ${billingAgreementId}`);
+
+  // Calculate next billing period (typically 1 month from now)
+  const nextBillingDate = new Date();
+  nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+
+  if (supabase && billingAgreementId) {
+    const { error } = await supabase
+      .from('subscriptions')
+      .update({
+        status: 'active',
+        current_period_end: nextBillingDate.toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('subscription_id', billingAgreementId);
+
+    if (error) {
+      console.error('Supabase error (payment completed):', error);
+    }
+  }
+}
+
+// Handler: Payment Failed
+async function handlePaymentFailed(resource) {
+  const subscriptionId = resource.id || resource.billing_agreement_id;
+
+  console.log(`⚠️ Payment failed for subscription: ${subscriptionId}`);
+
+  if (supabase && subscriptionId) {
+    const { error } = await supabase
+      .from('subscriptions')
+      .update({
+        status: 'past_due',
+        updated_at: new Date().toISOString()
+      })
+      .eq('subscription_id', subscriptionId);
+
+    if (error) {
+      console.error('Supabase error (payment failed):', error);
+    }
+  }
+}
+
+// Health check for PayPal webhook
+app.get('/api/paypal/webhook/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'PayPal Webhook Handler',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Start server
