@@ -1,0 +1,23 @@
+{
+  "generic": {
+    "listingCard": ".listing-card, .property-card, article",
+    "price": ".price, .listing-price",
+    "address": ".address, .listing-address",
+    "specs": ".specs, .listing-specs, .property-details",
+    "image": "img.listing-photo, .property-image img"
+  },
+  "zillow_profile": {
+    "listingCard": "article[data-test='property-card']",
+    "price": "span[data-test='property-card-price']",
+    "address": "address[data-test='property-card-addr']",
+    "specs": "ul[data-test='property-card-details']",
+    "image": "img[data-test='property-card-img']"
+  },
+  "mock": {
+    "listingCard": ".card",
+    "price": ".price-tag",
+    "address": ".location",
+    "specs": ".features",
+    "image": "img"
+  }
+}

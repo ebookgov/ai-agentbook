@@ -421,6 +421,26 @@ app.get('/api/bookings', async (req, res) => {
   }
 });
 
+// Endpoint to list all properties (for Dashboard)
+app.get('/api/properties', async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.json({ success: false, message: 'Supabase not configured' });
+    }
+    
+    const { data, error } = await supabase
+      .from('properties')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ success: true, properties: data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Admin endpoint to add properties (manual entry or via scraper)
 app.post('/api/properties', async (req, res) => {
   try {
@@ -458,6 +478,41 @@ app.post('/api/properties', async (req, res) => {
   } catch (error) {
     console.error('Error adding property:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Batch endpoint for CSV Import
+app.post('/api/properties/batch', async (req, res) => {
+  try {
+    if (!supabase) return res.json({ success: false, message: 'Supabase not configured' });
+    
+    const { properties } = req.body;
+    if (!Array.isArray(properties)) {
+      return res.status(400).json({ success: false, message: 'Invalid payload: properties must be an array' });
+    }
+
+    // Prepare records with IDs if missing
+    const records = properties.map(p => ({
+      ...p,
+      property_id: p.property_id || `IMP-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      status: p.status || 'active',
+      created_at: new Date()
+    }));
+
+    const { data, error } = await supabase
+      .from('properties')
+      .upsert(records, { onConflict: 'property_id' })
+      .select();
+
+    if (error) throw error;
+
+    // Clear cache
+    if (typeof propertyCache !== 'undefined') propertyCache.clear();
+
+    res.json({ success: true, count: data.length, properties: data });
+  } catch (error) {
+    console.error('Batch import error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
