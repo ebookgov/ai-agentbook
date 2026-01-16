@@ -30,95 +30,42 @@ if (supabaseUrl && supabaseKey) {
   console.log('   Missing:', !supabaseUrl ? 'SUPABASE_PROJECT_URL' : '', !supabaseKey ? 'SUPABASE_ACCESS_SECRET_KEY' : '');
 }
 
-// Property database (in-memory for fast access)
-const propertyDatabase = {
-  'AZ-FLAG-001': {
-    id: 'AZ-FLAG-001',
-    name: 'Mountain View Ranch - Flagstaff',
-    price: 425000,
-    priceFormatted: '$425,000',
-    acreage: 35,
-    location: { city: 'Flagstaff', county: 'Coconino', state: 'AZ', distance: '15 miles east of Flagstaff' },
-    features: {
-      structure: 'Log cabin',
-      bedrooms: 2,
-      bathrooms: 2,
-      water: 'Well water',
-      power: 'Solar panels + grid',
-      access: 'Year-round paved road'
-    },
-    highlights: ['Stunning San Francisco Peaks views', 'Elk and deer habitat', 'Bordered by Coconino National Forest', 'Dark sky location']
-  },
-  'AZ-FLAG-002': {
-    id: 'AZ-FLAG-002',
-    name: 'Ponderosa Homestead',
-    price: 289000,
-    priceFormatted: '$289,000',
-    acreage: 20,
-    location: { city: 'Williams', county: 'Coconino', state: 'AZ', distance: '25 minutes from Flagstaff' },
-    features: {
-      structure: 'Single family home',
-      sqft: 1800,
-      bedrooms: 3,
-      bathrooms: 2,
-      water: 'Well',
-      power: 'Grid electric',
-      extras: ['Detached workshop', 'Fenced pasture']
-    },
-    highlights: ['Ponderosa pine forest setting', 'Quiet county road', '30 minutes to Grand Canyon', 'Workshop for hobbies/business']
-  },
-  'AZ-COC-001': {
-    id: 'AZ-COC-001',
-    name: 'High Desert Retreat',
-    price: 175000,
-    priceFormatted: '$175,000',
-    acreage: 40,
-    location: { city: 'Parks', county: 'Coconino', state: 'AZ', distance: '20 miles west of Flagstaff' },
-    features: {
-      structure: 'Raw land',
-      buildingSite: 'Cleared and leveled',
-      water: 'Would need well',
-      power: 'At road (500ft run)',
-      access: 'Maintained dirt road'
-    },
-    highlights: ['Dark sky certified area', 'Perfect for off-grid build', 'Owner financing available', 'No HOA or restrictions'],
-    financing: { ownerFinancing: true, downPayment: '20%', interestRate: '7%', term: '10 years' }
-  },
-  'AZ-NAV-001': {
-    id: 'AZ-NAV-001',
-    name: 'Red Rock Ranch',
-    price: 549000,
-    priceFormatted: '$549,000',
-    acreage: 80,
-    location: { city: 'Winslow', county: 'Navajo', state: 'AZ', distance: '15 miles south of Winslow' },
-    features: {
-      structure: 'Adobe home',
-      sqft: 2200,
-      bedrooms: 3,
-      bathrooms: 2,
-      water: 'Well + 2 stock tanks',
-      power: 'Grid electric',
-      extras: ['Barn', 'Corrals', 'Equipment shed']
-    },
-    highlights: ['Working cattle ranch', 'Historic Route 66 access', 'Panoramic red rock views', 'Income-producing potential']
-  },
-  'AZ-YAV-001': {
-    id: 'AZ-YAV-001',
-    name: 'Verde Valley Vineyard Lot',
-    price: 225000,
-    priceFormatted: '$225,000',
-    acreage: 10,
-    location: { city: 'Camp Verde', county: 'Yavapai', state: 'AZ', distance: 'Central Verde Valley' },
-    features: {
-      structure: 'Ready to build',
-      buildingSite: 'Cleared pad',
-      water: 'Existing well (15 GPM)',
-      power: 'Grid electric at site',
-      irrigation: 'Drip system installed'
-    },
-    highlights: ['Arizona wine country', 'Adjacent to producing vineyard', 'Mild year-round climate', 'Near Jerome and Sedona']
+// Property database moved to Supabase 'properties' table
+// Cache for performance (optional, simple in-memory cache for now)
+let propertyCache = {};
+const CACHE_TTL = 300000; // 5 minutes
+let lastCacheUpdate = 0;
+
+async function getProperty(propertyId) {
+  // Check cache first
+  const now = Date.now();
+  if (propertyCache[propertyId] && (now - lastCacheUpdate < CACHE_TTL)) {
+    return propertyCache[propertyId];
   }
-};
+
+  if (!supabase) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('properties')
+      .select('*')
+      .eq('property_id', propertyId)
+      .single();
+
+    if (error || !data) {
+      console.log(`Property not found in DB: ${propertyId}`);
+      return null;
+    }
+
+    // Update cache
+    propertyCache[propertyId] = data;
+    lastCacheUpdate = now;
+    return data;
+  } catch (err) {
+    console.error('Error fetching property:', err);
+    return null;
+  }
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -221,7 +168,7 @@ async function handleBookShowing(parameters, fullPayload) {
           caller_name: callerName,
           caller_phone: callerPhone,
           property_id: propertyId,
-          property_name: propertyName || propertyDatabase[propertyId]?.name || propertyId,
+          property_name: propertyName || (await getProperty(propertyId))?.name || propertyId,
           preferred_date: preferredDate,
           preferred_time: preferredTime || 'Not specified',
           booking_confirmed: true,
@@ -329,7 +276,7 @@ async function handleTransferToHuman(parameters, fullPayload) {
 }
 
 // Handler: getPropertyDetails
-function handleGetPropertyDetails(parameters) {
+async function handleGetPropertyDetails(parameters) {
   try {
     const { propertyId } = parameters;
 
@@ -340,28 +287,33 @@ function handleGetPropertyDetails(parameters) {
       };
     }
 
-    // Look up property in database
-    const property = propertyDatabase[propertyId];
+    // Look up property in database (via helper)
+    const property = await getProperty(propertyId);
 
     if (!property) {
-      // Try fuzzy matching by name
-      const searchTerm = propertyId.toLowerCase();
-      const matchedProperty = Object.values(propertyDatabase).find(p => 
-        p.name.toLowerCase().includes(searchTerm) ||
-        p.location.city.toLowerCase().includes(searchTerm)
-      );
-      
-      if (matchedProperty) {
-        return {
-          success: true,
-          property: matchedProperty,
-          formattedDetails: formatPropertyDetails(matchedProperty)
-        };
+      // Try fuzzy matching by name in DB if using 'like' query, but for now strict ID check or simple cache scan
+      // For a robust search, we'd query Supabase with `ilike` on name/city
+      // Let's do a quick fallback search if ID lookup failed
+      if (supabase) {
+        const { data: searchData } = await supabase
+          .from('properties')
+          .select('*')
+          .or(`name.ilike.%${propertyId}%,location->>city.ilike.%${propertyId}%`)
+          .limit(1)
+          .single();
+          
+        if (searchData) {
+           return {
+            success: true,
+            property: searchData,
+            formattedDetails: formatPropertyDetails(searchData)
+          };
+        }
       }
 
       return {
         success: false,
-        message: `Property not found: ${propertyId}. Available properties are in Flagstaff, Williams, Parks, Winslow, and Camp Verde.`
+        message: `Property not found: ${propertyId}. Available properties are listed in our database.`
       };
     }
 
@@ -408,7 +360,7 @@ async function handleEndOfCallReport(payload) {
 // Helper: Format property details for natural speech
 function formatPropertyDetails(property) {
   const features = property.features || {};
-  let details = `${property.name} is a ${property.acreage}-acre property`;
+  let details = `${property.name} is a ${property.acreage || 'various'}-acre property`;
 
   if (features.structure && features.structure !== 'Raw land') {
     details += ` with a ${features.structure}`;
@@ -424,8 +376,15 @@ function formatPropertyDetails(property) {
     details += `, ${features.sqft} square feet`;
   }
 
-  details += `. Located in ${property.location.city}, ${property.location.state}`;
-  details += `. Listed at ${property.priceFormatted}.`;
+  if (property.location) {
+     details += `. Located in ${property.location.city}, ${property.location.state}`;
+  }
+  
+  if (property.price_formatted) {
+      details += `. Listed at ${property.price_formatted}.`;
+  } else if (property.price) {
+      details += `. Listed at $${property.price}.`;
+  }
 
   if (property.highlights && property.highlights.length > 0) {
     details += ` Key features include: ${property.highlights.slice(0, 3).join(', ')}.`;
@@ -458,6 +417,46 @@ app.get('/api/bookings', async (req, res) => {
       bookings: data || []
     });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin endpoint to add properties (manual entry or via scraper)
+app.post('/api/properties', async (req, res) => {
+  try {
+    const { property_id, name, price, price_formatted, acreage, location, features, highlights, financing } = req.body;
+    
+    if (!property_id || !name) {
+      return res.status(400).json({ error: 'property_id and name are required' });
+    }
+
+    if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
+
+    const { data, error } = await supabase
+      .from('properties')
+      .upsert({
+        property_id,
+        name,
+        price,
+        price_formatted,
+        acreage,
+        location,
+        features,
+        highlights,
+        financing,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'property_id' })
+      .select();
+
+    if (error) throw error;
+
+    // Invalidate cache for this property
+    delete propertyCache[property_id];
+
+    res.json({ success: true, property: data[0] });
+
+  } catch (error) {
+    console.error('Error adding property:', error);
     res.status(500).json({ error: error.message });
   }
 });
