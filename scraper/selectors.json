@@ -11,7 +11,7 @@
     "price": "span[data-test='property-card-price']",
     "address": "address[data-test='property-card-addr']",
     "specs": "ul[data-test='property-card-details']",
-    "image": "img[data-test='property-card-img']"
+    "image": "img[  adata-test='property-card-img']"
   },
   "mock": {
     "listingCard": ".card",

@@ -441,7 +441,7 @@ app.get('/api/properties', async (req, res) => {
   }
 });
 
-// Admin endpoint to add properties (manual entry or via scraper)
+// Admin endpoint to add properties (manual entry)
 app.post('/api/properties', async (req, res) => {
   try {
     const { property_id, name, price, price_formatted, acreage, location, features, highlights, financing } = req.body;
