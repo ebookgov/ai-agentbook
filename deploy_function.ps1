@@ -2,8 +2,8 @@
 Write-Host "Starting Supabase Deployment for vapi-handler..." -ForegroundColor Cyan
 
 # 1. Link the project (Force to ensure connection)
-Write-Host "Linking project rxutdpcbzwmpombmbkkq..."
-supabase link --project-ref rxutdpcbzwmpombmbkkq
+Write-Host "Linking project byllwcxvbxybaawrilec..."
+supabase link --project-ref byllwcxvbxybaawrilec
 
 # 2. Deploy the function
 Write-Host "Deploying vapi-handler (No JWT Verification)..."

@@ -1,8 +1,47 @@
-.roo/
-.vscode/mcp.json
-supabase/index.js
+# Dependencies
+node_modules/
+dashboard/node_modules/
+webhook/node_modules/
+scraper/node_modules/
+
+# Environment variables
 .env
 .env.*
-Ebgov_Tools.md
-node_modules/
+!.env.example
+
+# Build outputs
+dist/
+build/
 *.log
+*.tgz
+
+# IDE configs
+.roo/
+.roomodes
+.vscode/
+.cursor/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sensitive data
+paypal_token.txt
+supabase/index.js
+*.key
+*.pem
+*_token.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backup and temp files
+*.bak
+*.backup
+*.tmp
+_archive/
+
+# Vapi specific (if needed)
+vapi/squad-id.txt.backup

@@ -1,0 +1,69 @@
+{
+    "vector_database_schema": {
+        "collection_name": "arizona_land_assistant_knowledge",
+        "fields": [
+            {
+                "name": "id",
+                "type": "string",
+                "description": "Unique identifier for the knowledge entry.",
+                "is_primary_key": true,
+                "is_searchable": false
+            },
+            {
+                "name": "type",
+                "type": "string",
+                "description": "Category of knowledge (e.g., 'agent_identity', 'compliance_guardrail', 'disclosure_item', 'mandatory_notice'). Optimized for low-latency filtering.",
+                "is_searchable": true,
+                "is_filterable": true
+            },
+            {
+                "name": "category",
+                "type": "string",
+                "description": "Sub-category within the knowledge type (e.g., 'identity', 'disclosure_framework', 'required_item'). Optimized for low-latency filtering.",
+                "is_searchable": true,
+                "is_filterable": true
+            },
+            {
+                "name": "title",
+                "type": "text",
+                "description": "Concise title or name of the knowledge point.",
+                "is_searchable": true,
+                "is_filterable": false
+            },
+            {
+                "name": "content",
+                "type": "text",
+                "description": "The textual content of the knowledge point, for embedding and semantic search.",
+                "is_searchable": true,
+                "is_filterable": false
+            },
+            {
+                "name": "jurisdiction",
+                "type": "string",
+                "description": "Geographical or legal jurisdiction this knowledge applies to.",
+                "is_searchable": true,
+                "is_filterable": true
+            },
+            {
+                "name": "authority",
+                "type": "string",
+                "description": "Legal authority or basis for the information.",
+                "is_searchable": true,
+                "is_filterable": true
+            },
+            {
+                "name": "related_statute",
+                "type": "string",
+                "description": "Specific statute or regulation related to the knowledge (e.g., A.R.S. § 33-422).",
+                "is_searchable": true,
+                "is_filterable": true
+            }
+        ],
+        "vector_field": {
+            "name": "content_vector",
+            "type": "float_vector",
+            "dimensions": "[VECTOR_DIMENSIONS]",
+            "distance_metric": "cosine"
+        }
+    }
+}

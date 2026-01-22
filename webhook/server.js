@@ -9,6 +9,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
+const { requireApiKey, verifyPayPalWebhookSignature } = require('./security');
 require('dotenv').config({ path: '../.env' });
 
 const app = express();
@@ -441,8 +442,8 @@ app.get('/api/properties', async (req, res) => {
   }
 });
 
-// Admin endpoint to add properties (manual entry)
-app.post('/api/properties', async (req, res) => {
+// Admin endpoint to add properties (manual entry) - PROTECTED
+app.post('/api/properties', requireApiKey, async (req, res) => {
   try {
     const { property_id, name, price, price_formatted, acreage, location, features, highlights, financing } = req.body;
     
@@ -481,8 +482,8 @@ app.post('/api/properties', async (req, res) => {
   }
 });
 
-// Batch endpoint for CSV Import
-app.post('/api/properties/batch', async (req, res) => {
+// Batch endpoint for CSV Import - PROTECTED
+app.post('/api/properties/batch', requireApiKey, async (req, res) => {
   try {
     if (!supabase) return res.json({ success: false, message: 'Supabase not configured' });
     
@@ -520,39 +521,17 @@ app.post('/api/properties/batch', async (req, res) => {
 // PayPal Webhook Endpoint
 // ============================================================
 
-// PayPal Webhook Signature Verification
-async function verifyPayPalWebhook(req) {
-  const webhookId = process.env.PAYPAL_WEBHOOK_ID;
-  if (!webhookId) {
-    console.warn('⚠️  PAYPAL_WEBHOOK_ID not set - skipping signature verification');
-    return true; // Allow in dev mode
-  }
-
-  const transmissionId = req.headers['paypal-transmission-id'];
-  const transmissionTime = req.headers['paypal-transmission-time'];
-  const certUrl = req.headers['paypal-cert-url'];
-  const transmissionSig = req.headers['paypal-transmission-sig'];
-  const authAlgo = req.headers['paypal-auth-algo'];
-
-  if (!transmissionId || !transmissionTime || !transmissionSig) {
-    console.error('Missing PayPal signature headers');
-    return false;
-  }
-
-  // For production, you should verify the signature using PayPal's API
-  // For now, we'll do a basic check that headers exist
-  // Full verification requires calling PayPal's /v1/notifications/verify-webhook-signature
-  console.log(`PayPal webhook received: ${transmissionId}`);
-  return true;
-}
+// PayPal Webhook Signature Verification - Now using cryptographic verification from security.js
+// The verifyPayPalWebhookSignature function is imported from ./security.js
+// It performs full cryptographic verification via PayPal's /v1/notifications/verify-webhook-signature API
 
 // PayPal Webhook Handler
 app.post('/api/paypal/webhook', async (req, res) => {
   try {
     console.log('PayPal Webhook received:', JSON.stringify(req.body, null, 2));
 
-    // Verify webhook signature
-    const isValid = await verifyPayPalWebhook(req);
+    // Verify webhook signature using cryptographic verification
+    const isValid = await verifyPayPalWebhookSignature(req);
     if (!isValid) {
       console.error('Invalid PayPal webhook signature');
       return res.status(401).json({ error: 'Invalid signature' });
