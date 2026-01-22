@@ -1,4 +1,5 @@
 # Voice Agent Knowledge Architecture - Implementation Guide
+
 **Project:** AI Voice Agent for Arizona Real Estate (Vapi.ai)  
 **Last Updated:** January 21, 2026  
 **Duration:** 12 weeks (3 phases)
@@ -23,6 +24,7 @@ Response → TTS → User
 ```
 
 **Expected improvements:**
+
 - Latency: 800ms → 300ms (repeat questions)
 - Cost: $1.50 → $0.80 per call
 
@@ -83,6 +85,7 @@ Copy this JSON into Vapi Dashboard (Assistants → Create Assistant):
 ```
 
 **To deploy:**
+
 1. Go to Vapi Dashboard → Assistants
 2. Click "Create Assistant"
 3. Paste the above JSON (or fill fields manually)
@@ -346,6 +349,7 @@ volumes:
 ```
 
 **To run:**
+
 ```bash
 # Start containers
 docker-compose up -d
@@ -446,6 +450,7 @@ if __name__ == "__main__":
 ```
 
 **To run:**
+
 ```bash
 python test_phase1.py
 ```
@@ -762,6 +767,7 @@ def log_tcpa_event(phone: str, event_type: str, consent_status: str, ai_disclosu
 ## DEPLOYMENT CHECKLIST (ALL PHASES)
 
 ### Pre-Deployment
+
 - [ ] All code reviewed by 2+ engineers
 - [ ] Unit tests pass (>80% coverage)
 - [ ] Integration tests pass (Phase 1, 2, 3 separately)
@@ -771,6 +777,7 @@ def log_tcpa_event(phone: str, event_type: str, consent_status: str, ai_disclosu
 - [ ] Rollback plan documented
 
 ### Deployment (Night/Weekend)
+
 - [ ] Backup databases (Redis, Elasticsearch, Pinecone)
 - [ ] Deploy to staging environment
 - [ ] Run smoke tests (Phase 1-3 all working)
@@ -779,6 +786,7 @@ def log_tcpa_event(phone: str, event_type: str, consent_status: str, ai_disclosu
 - [ ] Verify latency metrics within budget
 
 ### Post-Deployment
+
 - [ ] Verify Vapi calls working end-to-end
 - [ ] Check cache hit rates (target: >40% semantic, >30% audio)
 - [ ] Verify cost per call (target: <$1.00)

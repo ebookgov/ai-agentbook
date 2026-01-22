@@ -1,0 +1,75 @@
+{
+    "type": "function",
+    "function": {
+        "name": "get_arizona_land_disclosure_details",
+        "description": "Retrieves detailed information and compliance requirements for a specific Arizona rural land disclosure item or mandatory notice, as per A.R.S. § 33-422. Use this when a user inquires about specific disclosure aspects, such as water supply, legal access, or buyer rights.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "disclosure_item": {
+                    "description": "The specific disclosure item or mandatory notice the user is asking about.",
+                    "oneOf": [
+                        {
+                            "const": "legal_access",
+                            "title": "Legal Access",
+                            "description": "Information about legal rights of access to and from the property"
+                        },
+                        {
+                            "const": "physical_access",
+                            "title": "Physical Access",
+                            "description": "Details about physical means of accessing the property"
+                        },
+                        {
+                            "const": "road_maintenance",
+                            "title": "Road Maintenance",
+                            "description": "Obligations and responsibilities for road maintenance and repairs"
+                        },
+                        {
+                            "const": "water_supply",
+                            "title": "Water Supply",
+                            "description": "Availability, source, and reliability of water supply for the property"
+                        },
+                        {
+                            "const": "water_supply_determination_disclaimer",
+                            "title": "Water Supply Determination Disclaimer",
+                            "description": "Disclaimer regarding water supply determinations and their limitations"
+                        },
+                        {
+                            "const": "solar_systems",
+                            "title": "Solar Systems",
+                            "description": "Existing solar energy systems and their operational status"
+                        },
+                        {
+                            "const": "zoning_compliance",
+                            "title": "Zoning Compliance",
+                            "description": "Compliance with local zoning laws and land use regulations"
+                        },
+                        {
+                            "const": "title_encumbrances",
+                            "title": "Title Encumbrances",
+                            "description": "Any liens, easements, or restrictions affecting property title"
+                        },
+                        {
+                            "const": "buyer_rescission_right",
+                            "title": "Buyer Rescission Right",
+                            "description": "Buyer's right to rescind the purchase within specified timeframes"
+                        },
+                        {
+                            "const": "affidavit_recording_requirement",
+                            "title": "Affidavit Recording Requirement",
+                            "description": "Requirements for recording seller's affidavit with county recorder"
+                        },
+                        {
+                            "const": "military_proximity_notice",
+                            "title": "Military Proximity Notice",
+                            "description": "Notice regarding proximity to military airports or installations"
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "disclosure_item"
+            ]
+        }
+    }
+}

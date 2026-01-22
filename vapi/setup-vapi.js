@@ -14,13 +14,28 @@ const https = require('https');
 require('dotenv').config({ path: '../.env' });
 
 // Read configuration files
-const assistantConfig = JSON.parse(
-  fs.readFileSync(path.join(__dirname, 'assistant-config.json'), 'utf8')
-);
-const systemPrompt = fs.readFileSync(
-  path.join(__dirname, 'system-prompt.txt'), 
-  'utf8'
-);
+let assistantConfig, systemPromptData, systemPrompt;
+try {
+  assistantConfig = JSON.parse(
+    fs.readFileSync(path.join(__dirname, 'assistant-config.json'), 'utf8')
+  );
+} catch (error) {
+  console.error('Error parsing assistant-config.json:', error.message);
+  process.exit(1);
+}
+
+try {
+  systemPromptData = JSON.parse(
+    fs.readFileSync(path.join(__dirname, 'system-prompt.json'), 'utf8')
+  );
+  systemPrompt = systemPromptData.systemPrompt;
+  if (!systemPrompt) {
+    throw new Error('systemPrompt field not found in system-prompt.json');
+  }
+} catch (error) {
+  console.error('Error parsing system-prompt.json:', error.message);
+  process.exit(1);
+}
 
 // Extract the private key ID from the PEM format in .env
 // Format in .env: -----BEGIN PRIVATE KEY-----{key-id}-----END PRIVATE KEY-----
@@ -113,7 +128,7 @@ console.log('--- FIRST MESSAGE ---');
 console.log(assistantConfig.firstMessage);
 console.log('');
 console.log('--- SYSTEM PROMPT ---');
-console.log('Copy from: vapi/system-prompt.txt');
+console.log('Copy from: vapi/system-prompt.json (systemPrompt field)');
 console.log('');
 console.log('--- FUNCTIONS ---');
 assistantConfig.functions.forEach((fn, i) => {

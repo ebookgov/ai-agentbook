@@ -1,0 +1,134 @@
+const express = require('express');
+const bodyParser = require('body-parser');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware for parsing JSON requests.
+// Using a limit to prevent excessively large payloads, though Vapi webhooks are typically concise.
+app.use(bodyParser.json({ limit: '1mb'
+}));
+
+// Vapi Webhook Endpoint
+app.post('/vapi-webhook', async (req, res) => {
+  const { call, message, type, timestamp
+  } = req.body;
+
+  // Log incoming webhook data for debugging and monitoring.
+  // In a production environment, consider more structured logging.
+  console.log(`Received Vapi Webhook: Type - ${type
+  }`);
+  console.log(`Timestamp: ${timestamp
+  }`);
+  // Omit full call object for brevity in logs to optimize performance.
+  // console.log('Call details:', call);
+
+  try {
+    switch (type) {
+      case 'function_call':
+        const { functionCall
+      } = message;
+        console.log(`Function Call Detected: ${functionCall.name
+      }`);
+        console.log('Arguments:', functionCall.parameters);
+
+        // --- Latency Consideration ---
+      // Implement immediate asynchronous processing for function calls
+      // to respond quickly to Vapi (within ~200ms for optimal streaming).
+      // Actual function logic should ideally be offloaded to a separate
+      // non-blocking process or microservice if complex, to prevent
+      // blocking the webhook response.
+      // Example: Handle 'get_arizona_land_disclosure_details'
+        if (functionCall.name === 'get_arizona_land_disclosure_details') {
+          const { disclosure_item
+        } = functionCall.parameters;
+          // In a real application, you'd fetch this from your knowledge base
+        // or a specific service. For demonstration, we'll return a placeholder.
+        // Simulate a quick lookup/response
+          const responsePayload = {
+            functionCall: {
+              name: functionCall.name,
+              parameters: functionCall.parameters,
+              result: `Information for ${disclosure_item
+            } is being retrieved. This is a placeholder response. In production, this would contain the actual disclosure details.`
+          }
+        };
+
+          // Respond to Vapi with the result of the function call.
+        // Vapi expects a JSON response acknowledging the action.
+          return res.json(responsePayload);
+      }
+      // For unhandled function calls, you might want to log an error
+      // or respond with an error message back to Vapi if necessary.
+        console.warn(`Unhandled function call: ${functionCall.name
+      }`);
+        return res.status(200).json({}); // Acknowledge without specific action
+
+      case 'end_of_call':
+        console.log('Call has ended.');
+        return res.status(200).json({});
+
+      case 'speech_update':
+      // This type often contains real-time transcription updates.
+      // For performance, you might only log or process if specific logic is needed.
+      // console.log(`Speech Update: ${message.transcript}`);
+        return res.status(200).json({});
+
+      case 'status_update':
+        console.log(`Call Status Update: ${call.status
+      }`);
+        return res.status(200).json({});
+
+      default:
+        console.log(`Unhandled Vapi webhook type: ${type
+      }`);
+        return res.status(200).json({});
+    }
+  } catch (error) {
+    console.error('Error processing Vapi webhook:', error);
+    // Respond with a 500 status code if there's a server error.
+    return res.status(500).json({ error: 'Internal Server Error'
+    });
+  }
+});
+
+/**
+ * Health check endpoint to verify server status and basic functionality
+ * Returns JSON response with status information for monitoring systems
+ * @route GET /health
+ * @returns {Object} JSON response with server status, timestamp, and uptime
+ */
+app.get('/health', (req, res) => {
+  try {
+    const healthData = {
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: process.version,
+      memory: process.memoryUsage()
+    };
+
+    // Set cache control headers to prevent caching of health checks
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+
+    res.status(200).json(healthData);
+  } catch (error) {
+    console.error('Health check endpoint error:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      error: 'Health check failed',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Node.js Vapi Webhook Server listening on port ${PORT
+  }`);
+  console.log('Optimized for low cold start times and efficient webhook processing.');
+});
+
+module.exports = app; // Export for testing or serverless environments
