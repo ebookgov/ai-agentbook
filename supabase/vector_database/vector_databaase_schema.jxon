@@ -1,0 +1,206 @@
+{
+  "vector_database_schema": {
+    "collection_name": "arizona_land_assistant_knowledge",
+    "version": "1.0.0",
+    "description": "Schema for Arizona Land Assistant Knowledge Base with vector embeddings",
+    "fields": [
+      {
+        "name": "id",
+        "type": "string",
+        "description": "Unique identifier for the knowledge entry.",
+        "is_primary_key": true,
+        "is_searchable": false,
+        "is_filterable": true,
+        "constraints": {
+          "required": true,
+          "unique": true
+        }
+      },
+      {
+        "name": "type",
+        "type": "string",
+        "description": "Category of knowledge (e.g., 'agent_identity', 'compliance_guardrail', 'disclosure_item', 'mandatory_notice'). Optimized for low-latency filtering.",
+        "is_searchable": true,
+        "is_filterable": true,
+        "constraints": {
+          "required": true,
+          "enum": ["agent_identity", "compliance_guardrail", "disclosure_item", "mandatory_notice"]
+        }
+      },
+      {
+        "name": "category",
+        "type": "string",
+        "description": "Sub-category within the knowledge type (e.g., 'identity', 'disclosure_framework', 'required_item'). Optimized for low-latency filtering.",
+        "is_searchable": true,
+        "is_filterable": true,
+        "constraints": {
+          "required": true
+        }
+      },
+      {
+        "name": "title",
+        "type": "text",
+        "description": "Concise title or name of the knowledge point.",
+        "is_searchable": true,
+        "is_filterable": false,
+        "constraints": {
+          "required": true,
+          "max_length": 200
+        }
+      },
+      {
+        "name": "content",
+        "type": "text",
+        "description": "The textual content of the knowledge point, for embedding and semantic search.",
+        "is_searchable": true,
+        "is_filterable": false,
+        "constraints": {
+          "required": true,
+          "min_length": 10
+        }
+      },
+      {
+        "name": "jurisdiction",
+        "type": "string",
+        "description": "Geographical or legal jurisdiction this knowledge applies to.",
+        "is_searchable": true,
+        "is_filterable": true,
+        "constraints": {
+          "required": true
+        }
+      },
+      {
+        "name": "authority",
+        "type": "string",
+        "description": "Legal authority or basis for the information.",
+        "is_searchable": true,
+        "is_filterable": true,
+        "constraints": {
+          "required": false
+        }
+      },
+      {
+        "name": "related_statute",
+        "type": "string",
+        "description": "Specific statute or regulation related to the knowledge (e.g., A.R.S. § 33-422).",
+        "is_searchable": true,
+        "is_filterable": true,
+        "constraints": {
+          "required": false,
+          "pattern": "^[A-Z]+\\.R\\.S\\. § [0-9-]+.*$"
+        }
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp",
+        "description": "Timestamp when the knowledge entry was created.",
+        "is_searchable": false,
+        "is_filterable": true,
+        "constraints": {
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp",
+        "description": "Timestamp when the knowledge entry was last updated.",
+        "is_searchable": false,
+        "is_filterable": true,
+        "constraints": {
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      }
+    ],
+    "vector_field": {
+      "name": "content_vector",
+      "type": "float_vector",
+      "dimensions": 1536,
+      "distance_metric": "cosine",
+      "description": "Vector embedding of the content field for semantic search"
+    },
+    "indexes": [
+      {
+        "name": "idx_type_category",
+        "fields": ["type", "category"],
+        "type": "composite",
+        "description": "Composite index for efficient filtering by knowledge type and category combinations"
+      },
+      {
+        "name": "idx_jurisdiction",
+        "fields": ["jurisdiction"],
+        "type": "btree",
+        "description": "B-tree index for fast jurisdiction-based queries"
+      },
+      {
+        "name": "idx_created_at",
+        "fields": ["created_at"],
+        "type": "btree",
+        "description": "B-tree index for chronological ordering and date range queries on creation time"
+      },
+      {
+        "name": "idx_updated_at",
+        "fields": ["updated_at"],
+        "type": "btree",
+        "description": "B-tree index for efficient queries on recently updated knowledge entries"
+      }
+    ],
+    "validation_rules": {
+      "pre_insert": [
+        {
+          "name": "validate_required_fields",
+          "description": "Ensures all required fields (id, type, category, title, content, jurisdiction, created_at, updated_at) are present and non-null"
+        },
+        {
+          "name": "validate_enum_values",
+          "description": "Validates that 'type' field contains only allowed enum values: agent_identity, compliance_guardrail, disclosure_item, mandatory_notice"
+        },
+        {
+          "name": "validate_content_length",
+          "description": "Validates that 'content' field has minimum 10 characters and reasonable maximum length to prevent abuse and ensure quality"
+        },
+        {
+          "name": "validate_title_length",
+          "description": "Validates that 'title' field does not exceed 200 characters and is not empty or whitespace-only"
+        },
+        {
+          "name": "validate_statute_format",
+          "description": "Validates that 'related_statute' field follows the format: A.R.S. § [numbers]-[optional] (e.g., A.R.S. § 33-422)",
+          "skip_if_empty": true
+        },
+        {
+          "name": "prevent_future_timestamps",
+          "description": "Prevents insertion of future timestamps in created_at and updated_at fields to maintain data integrity"
+        }
+      ],
+      "pre_update": [
+        {
+          "name": "validate_required_fields",
+          "description": "Ensures all required fields (id, type, category, title, content, jurisdiction, created_at, updated_at) are present and non-null"
+        },
+        {
+          "name": "validate_enum_values",
+          "description": "Validates that 'type' field contains only allowed enum values: agent_identity, compliance_guardrail, disclosure_item, mandatory_notice"
+        },
+        {
+          "name": "validate_content_length",
+          "description": "Validates that 'content' field has minimum 10 characters and reasonable maximum length to prevent abuse"
+        },
+        {
+          "name": "validate_statute_format",
+          "description": "Validates that 'related_statute' field follows the format: A.R.S. § [numbers]-[optional] (e.g., A.R.S. § 33-422)",
+          "skip_if_empty": true
+        },
+        {
+          "name": "prevent_created_at_modification",
+          "description": "Prevents modification of 'created_at' field during updates to maintain data integrity"
+        },
+        {
+          "name": "auto_update_timestamp",
+          "description": "Automatically updates the 'updated_at' field to CURRENT_TIMESTAMP on every update operation"
+        }
+      ]
+    }
+  }
+}
