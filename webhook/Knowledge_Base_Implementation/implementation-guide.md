@@ -111,8 +111,13 @@ from openai import OpenAI
 
 app = FastAPI()
 
-# Initialize Redis for semantic cache
-redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+# Initialize Redis for semantic cache (works with Docker and local)
+redis_client = redis.Redis(
+    host=os.getenv('REDIS_HOST', 'localhost'),
+    port=6379,
+    db=0,
+    decode_responses=True
+)
 
 # Initialize OpenAI
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -346,6 +351,42 @@ services:
 
 volumes:
   redis_data:
+```
+
+**Create Dockerfile:**
+
+Create file: `Dockerfile`
+
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Expose port
+EXPOSE 8000
+
+# Run the application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+**Create requirements.txt:**
+
+Create file: `requirements.txt`
+
+```txt
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+redis==5.0.1
+openai==1.3.0
+pydantic==2.5.0
+python-dotenv==1.0.0
 ```
 
 **To run:**
@@ -863,6 +904,6 @@ When Phase 3 is complete:
 
 ---
 
-**Document version:** 1.0  
-**Last updated:** January 21, 2026  
+**Document version:** 1.1  
+**Last updated:** January 22, 2026  
 **Status:** Ready for implementation

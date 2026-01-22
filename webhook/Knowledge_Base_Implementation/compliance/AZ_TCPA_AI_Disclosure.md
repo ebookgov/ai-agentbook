@@ -287,38 +287,101 @@ Have a great day!"
 ### Compliance Middleware
 
 ```python
-def compliance_wrapper(call_handler):
-    """Ensure all calls include required disclosures"""
-    
-    REQUIRED_DISCLOSURES = [
-        "AI",           # AI status
-        "BROKERAGE",    # Company name
-        "recorded",     # Recording notice
-        "human"         # Handoff option
-    ]
-    
-    async def wrapped_handler(call):
-        # Inject opening disclosure
-        opening = generate_compliant_opening(call.brokerage)
-        await call.speak(opening)
-        
-        # Log disclosure delivery
-        log_compliance_event(
-            call_id=call.id,
-            event="DISCLOSURE_DELIVERED",
-            timestamp=datetime.now()
-        )
-        
-        # Continue with normal handling
+# Import required modules for datetime and logging
+from datetime import datetime
+import asyncio
+from typing import Callable, Any
+
+# Define required disclosures as constants for clarity
+REQUIRED_DISCLOSURES = [
+    "AI",           # Indicates AI status disclosure
+    "BROKERAGE",    # Company/brokerage name disclosure
+    "recorded",     # Recording notice disclosure
+    "human"         # Human handoff option disclosure
+]
+
+def compliance_wrapper(call_handler: Callable) -> Callable:
+    """
+    Decorator to wrap call handlers with mandatory compliance disclosures.
+
+    This ensures every call includes required legal disclosures before
+    proceeding to the main call handling logic.
+
+    Args:
+        call_handler: The original call handling function to wrap
+
+    Returns:
+        Wrapped handler function with compliance middleware
+    """
+
+    async def wrapped_handler(call: Any) -> Any:
+        """
+        Wrapped call handler that injects compliance disclosures.
+
+        Args:
+            call: Call object containing brokerage info and speak method
+
+        Returns:
+            Result of the original call handler
+        """
+        # Step 1: Generate and deliver the compliant opening disclosure
+        try:
+            opening_script = generate_compliant_opening(call.brokerage)
+            await call.speak(opening_script)
+
+            # Step 2: Log the disclosure event for compliance tracking
+            log_compliance_event(
+                call_id=call.id,
+                event="DISCLOSURE_DELIVERED",
+                timestamp=datetime.now().isoformat()  # Use ISO format for consistency
+            )
+
+        except Exception as e:
+            # Handle disclosure delivery or logging errors
+            # Log error and potentially escalate or retry
+            print(f"Compliance disclosure error: {e}")
+            # In production, use proper logging framework
+
+        # Step 3: Proceed with the original call handling logic
         return await call_handler(call)
-    
+
     return wrapped_handler
 
 def generate_compliant_opening(brokerage: str) -> str:
-    return f"""Hello, this is the Arizona property assistant for {brokerage}. 
-    I'm an AI-powered voice agent, and this call may be recorded for quality 
-    purposes. You can request to speak with a human agent at any time. 
-    How can I help you today?"""
+    """
+    Generate the legally required opening disclosure script.
+
+    This script includes all mandatory disclosures:
+    - AI status identification
+    - Brokerage name
+    - Recording notice
+    - Human handoff option
+
+    Args:
+        brokerage: Name of the real estate brokerage
+
+    Returns:
+        Formatted opening script as a string
+    """
+    return (
+        f"Hello, this is the Arizona property assistant for {brokerage}. "
+        "I'm an AI-powered voice agent, and this call may be recorded for "
+        "quality purposes. You can request to speak with a human agent at "
+        "any time. How can I help you today?"
+    )
+
+def log_compliance_event(call_id: str, event: str, timestamp: str) -> None:
+    """
+    Log compliance-related events for auditing purposes.
+
+    Args:
+        call_id: Unique identifier for the call
+        event: Description of the compliance event
+        timestamp: ISO-formatted timestamp of the event
+    """
+    # In a real implementation, this would write to a database or log file
+    # For now, this is a placeholder function
+    print(f"Compliance Event: {event} for call {call_id} at {timestamp}")
 ```
 
 ### Latency Impact

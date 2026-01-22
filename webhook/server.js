@@ -32,10 +32,46 @@ if (supabaseUrl && supabaseKey) {
 }
 
 // Property database moved to Supabase 'properties' table
-// Cache for performance (optional, simple in-memory cache for now)
+// Cache for performance - Redis preferred, in-memory fallback
 let propertyCache = {};
-const CACHE_TTL = 300000; // 5 minutes
+const CACHE_TTL = 300000; // 5 minutes (in-memory)
+const REDIS_CACHE_TTL = 86400; // 24 hours (Redis)
 let lastCacheUpdate = 0;
+
+// Initialize Redis client (optional - graceful fallback to in-memory)
+const Redis = require('redis');
+let redisClient = null;
+let redisConnected = false;
+
+// Cache statistics
+const cacheStats = {
+  hits: 0,
+  misses: 0,
+  totalLatency: 0,
+  cacheLatency: 0
+};
+
+async function initRedis() {
+  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  try {
+    redisClient = Redis.createClient({ url: redisUrl });
+    redisClient.on('error', (err) => {
+      console.log('Redis connection error (using in-memory cache):', err.message);
+      redisConnected = false;
+    });
+    redisClient.on('connect', () => {
+      console.log('[OK] Redis connected');
+      redisConnected = true;
+    });
+    await redisClient.connect();
+  } catch (err) {
+    console.log('[INFO] Redis not available - using in-memory cache');
+    redisConnected = false;
+  }
+}
+
+// Initialize Redis on startup
+initRedis();
 
 async function getProperty(propertyId) {
   // Check cache first
@@ -85,6 +121,34 @@ app.get('/api/vapi/webhook/health', (req, res) => {
   });
 });
 
+// Cache statistics endpoint (Phase 1)
+app.get('/api/cache/stats', (req, res) => {
+  const totalRequests = cacheStats.hits + cacheStats.misses;
+  const hitRate = totalRequests > 0 ? (cacheStats.hits / totalRequests * 100) : 0;
+  const avgLatency = cacheStats.misses > 0 ? (cacheStats.totalLatency / cacheStats.misses) : 0;
+  const avgCacheLatency = cacheStats.hits > 0 ? (cacheStats.cacheLatency / cacheStats.hits) : 0;
+  
+  res.json({
+    total_requests: totalRequests,
+    cache_hits: cacheStats.hits,
+    cache_misses: cacheStats.misses,
+    hit_rate_percent: hitRate.toFixed(1),
+    avg_latency_ms: avgLatency.toFixed(1),
+    avg_cache_latency_ms: avgCacheLatency.toFixed(1),
+    improvement_factor: avgCacheLatency > 0 ? (avgLatency / avgCacheLatency).toFixed(1) : 0,
+    redis_connected: redisConnected
+  });
+});
+
+// Reset cache stats
+app.post('/api/cache/reset', (req, res) => {
+  cacheStats.hits = 0;
+  cacheStats.misses = 0;
+  cacheStats.totalLatency = 0;
+  cacheStats.cacheLatency = 0;
+  res.json({ message: 'Cache stats reset' });
+});
+
 // Main webhook endpoint for Vapi function calls
 app.post('/api/vapi/webhook', async (req, res) => {
   try {
@@ -112,6 +176,9 @@ app.post('/api/vapi/webhook', async (req, res) => {
           break;
         case 'getPropertyDetails':
           result = await handleGetPropertyDetails(parameters);
+          break;
+        case 'lookupProperty':
+          result = await handleLookupProperty(parameters);
           break;
         default:
           result = { success: false, message: `Unknown function: ${functionName}` };
@@ -202,6 +269,19 @@ async function handleBookShowing(parameters, fullPayload) {
   }
 }
 
+// Helper: Validate phone number format (E.164 international standard)
+function validatePhoneNumber(phone) {
+  if (!phone) return false;
+
+  // E.164 regex: + followed by 1-15 digits, starting with country code
+  const e164Regex = /^\+[1-9]\d{1,14}$/;
+
+  // Clean the phone number first (remove spaces, dashes, etc.)
+  const cleanPhone = phone.replace(/[\s\-\(\)\.]/g, '');
+
+  return e164Regex.test(cleanPhone);
+}
+
 // Handler: transferToHuman
 async function handleTransferToHuman(parameters, fullPayload) {
   try {
@@ -222,6 +302,15 @@ async function handleTransferToHuman(parameters, fullPayload) {
 
     const callId = fullPayload?.message?.call?.id || `CALL-${Date.now()}`;
     const textNowPhone = process.env.TEXT_NOW_PHONE_NUMBER;
+
+    // Validate TEXT_NOW_PHONE_NUMBER format and presence
+    if (!textNowPhone || !validatePhoneNumber(textNowPhone)) {
+      console.error(`Invalid or missing TEXT_NOW_PHONE_NUMBER: ${textNowPhone}`);
+      return {
+        success: false,
+        message: 'Human transfer service is currently unavailable. Please try again later or contact support.'
+      };
+    }
 
     console.log(`Transfer requested - Caller: ${callerName}, Reason: ${reason}`);
 
@@ -330,6 +419,138 @@ async function handleGetPropertyDetails(parameters) {
       success: false,
       error: error.message
     };
+  }
+}
+
+// Handler: lookupProperty (Phase 1 caching)
+// Handles Arizona-specific knowledge queries with Redis/in-memory caching
+async function handleLookupProperty(parameters) {
+  const requestStart = Date.now();
+  
+  try {
+    const { address, query_type } = parameters;
+    
+    if (!address) {
+      return { success: false, error: 'Address required' };
+    }
+    
+    const queryType = query_type || 'general_info';
+    const cacheKey = `property:${address.toLowerCase()}:${queryType}`;
+    
+    // Try Redis cache first
+    if (redisConnected && redisClient) {
+      try {
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+          cacheStats.hits++;
+          cacheStats.cacheLatency += Date.now() - requestStart;
+          console.log(`[CACHE HIT] ${address} (${queryType}) - Redis`);
+          const result = JSON.parse(cached);
+          result.cache_hit = true;
+          result.latency_ms = Date.now() - requestStart;
+          return result;
+        }
+      } catch (err) {
+        console.log('Redis get error:', err.message);
+      }
+    }
+    
+    // Try in-memory cache
+    const memCacheKey = `${address.toLowerCase()}:${queryType}`;
+    if (propertyCache[memCacheKey] && (Date.now() - lastCacheUpdate < CACHE_TTL)) {
+      cacheStats.hits++;
+      cacheStats.cacheLatency += Date.now() - requestStart;
+      console.log(`[CACHE HIT] ${address} (${queryType}) - Memory`);
+      return { ...propertyCache[memCacheKey], cache_hit: true, latency_ms: Date.now() - requestStart };
+    }
+    
+    // Cache miss - fetch from database
+    cacheStats.misses++;
+    console.log(`[CACHE MISS] ${address} (${queryType})`);
+    
+    // Look up property in Supabase
+    let propertyData = null;
+    if (supabase) {
+      const { data } = await supabase
+        .from('properties')
+        .select('*')
+        .or(`name.ilike.%${address}%,property_id.eq.${address}`)
+        .limit(1)
+        .single();
+      propertyData = data;
+    }
+    
+    // Build result based on query type
+    let result;
+    if (queryType === 'water_rights') {
+      result = {
+        success: true,
+        address: address,
+        type: 'water_rights',
+        data: propertyData?.water_rights || {
+          disclosure: 'Water rights information not available for this property. Please contact the county assessor.'
+        }
+      };
+    } else if (queryType === 'solar_lease') {
+      result = {
+        success: true,
+        address: address,
+        type: 'solar_lease',
+        data: propertyData?.solar_lease || {
+          disclosure: 'No solar lease information on file.'
+        }
+      };
+    } else if (queryType === 'hoa_rules') {
+      result = {
+        success: true,
+        address: address,
+        type: 'hoa_rules',
+        data: propertyData?.hoa || {
+          disclosure: 'HOA information not available.'
+        }
+      };
+    } else if (queryType === 'property_tax') {
+      result = {
+        success: true,
+        address: address,
+        type: 'property_tax',
+        data: propertyData?.tax_info || {
+          disclosure: 'Property tax information should be verified with the county assessor.'
+        }
+      };
+    } else {
+      result = {
+        success: true,
+        address: address,
+        type: 'general_info',
+        data: propertyData || { message: 'Property not found in database' }
+      };
+    }
+    
+    result.retrieved_at = new Date().toISOString();
+    
+    // Cache the result
+    if (redisConnected && redisClient) {
+      try {
+        await redisClient.setEx(cacheKey, REDIS_CACHE_TTL, JSON.stringify(result));
+      } catch (err) {
+        console.log('Redis set error:', err.message);
+      }
+    }
+    
+    // Also update in-memory cache
+    propertyCache[memCacheKey] = result;
+    lastCacheUpdate = Date.now();
+    
+    cacheStats.totalLatency += Date.now() - requestStart;
+    result.cache_hit = false;
+    result.latency_ms = Date.now() - requestStart;
+    
+    return result;
+    
+  } catch (error) {
+    console.error('Error in lookupProperty:', error);
+    return { success: false, error: error.message };
   }
 }
 

@@ -1,4 +1,5 @@
 # Voice Agent Knowledge Architecture - Executive Summary
+
 **Research Date:** January 21, 2026  
 **Project:** AI Voice Agent for Arizona Real Estate (Vapi.ai)  
 **Status:** ✅ COMPLETE - 12-Week Implementation Plan
@@ -20,15 +21,18 @@ Your current Vapi voice agent faces three critical bottlenecks:
 ## 💡 THE SOLUTION: 3-PHASE ARCHITECTURE
 
 ### Phase 1: Prompt Caching + Semantic Cache (Weeks 1-2)
+
 **Goal:** Reduce TTFT (time-to-first-token) by 60% on repeat questions
 
-**What:** 
+**What:**
+
 - OpenAI Prompt Caching (cache system message + Arizona water rights rules)
 - Redis semantic cache (cache embeddings of property queries)
 - FastAPI backend as middleman
 
 **Results:**
-- Repeat questions: **-60% latency** (200-300ms vs 800ms)
+
+- Repeat questions: **-60% latency** (320ms vs 800ms)
 - Cost per call: **$0.80** (down from $1.50)
 - Implementation time: **3-5 days**
 
@@ -37,14 +41,17 @@ Your current Vapi voice agent faces three critical bottlenecks:
 ---
 
 ### Phase 2: Hybrid RAG (Weeks 3-6)
+
 **Goal:** Retrieve property knowledge in <100ms
 
 **What:**
+
 - Pinecone vector database (property metadata: water rights, solar leases, HOA rules)
 - Elasticsearch (full-text search for compliance queries)
 - Hybrid retrieval (RRF algorithm combining both)
 
 **Results:**
+
 - Knowledge retrieval: **<100ms** (down from 150-300ms)
 - Scales to **100+ properties** without performance degradation
 - Compliance accuracy: **99.9%** (water rights, TCPA verification)
@@ -55,15 +62,18 @@ Your current Vapi voice agent faces three critical bottlenecks:
 ---
 
 ### Phase 3: Audio Caching + Production Hardening (Weeks 7-12)
+
 **Goal:** Production-grade reliability + advanced optimization
 
 **What:**
+
 - Audio caching (cache TTS responses for common questions)
 - Advanced monitoring (latency percentiles, cache hit rates, error tracking)
 - Auto-scaling infrastructure
 - Compliance dashboard (TCPA consent tracking, AI disclosure logging)
 
 **Results:**
+
 - Voice-to-voice P95: **<800ms** (meets Vapi benchmark)
 - Audio cache hit rate: **>30%** (TTS cost reduction)
 - Infrastructure cost: **$920/month**
@@ -79,10 +89,10 @@ Your current Vapi voice agent faces three critical bottlenecks:
 | Component | Baseline | Phase 1 | Phase 2 | Phase 3 | Budget |
 |-----------|----------|---------|---------|---------|--------|
 | STT (Deepgram) | 150ms | 150ms | 150ms | 150ms | 150ms |
-| Knowledge Retrieval | 200-300ms | 100ms | <100ms | <100ms | 100ms |
+| Knowledge Retrieval | 150-300ms | 100ms | <100ms | <100ms | 100ms |
 | LLM Inference | 300ms | 120ms | 120ms | 120ms | 300ms |
 | TTS (cached) | 100ms | 100ms | 100ms | 10ms | 100ms |
-| **TOTAL** | **750-800ms** | **470ms** | **370ms** | **330ms** | **650ms** |
+| **TOTAL** | **700-850ms** | **470ms** | **370ms** | **330ms** | **650ms** |
 
 ✅ All phases hit budget. Phase 3 has 470ms safety margin.
 
@@ -91,6 +101,7 @@ Your current Vapi voice agent faces three critical bottlenecks:
 ## 💰 COST STRUCTURE
 
 ### Phase 1 (Prompt Caching + Redis)
+
 ```
 OpenAI API (10% of calls use cache):     $400/month
 Redis (t3.small):                         $20/month
@@ -103,6 +114,7 @@ Cost per call (1,000 calls/month):        $0.82
 ```
 
 ### Phase 2 (Add Pinecone + Elasticsearch)
+
 ```
 Phase 1 base:                             $820/month
 Pinecone (p1.x1):                         -$20 (replaces Redis for vectors)
@@ -113,6 +125,7 @@ Cost per call (1,000 calls/month):        $0.90
 ```
 
 ### Phase 3 (Add Audio Caching + Monitoring)
+
 ```
 Phase 2 base:                             $900/month
 S3 (audio cache):                         $5/month
@@ -129,12 +142,14 @@ Cost per call (1,000 calls/month):        $0.92
 ## 📅 12-WEEK IMPLEMENTATION ROADMAP
 
 ### Week 1-2: Phase 1 (Prompt Caching)
+
 - Day 1-2: Deploy Vapi config with prompt caching
 - Day 3-4: Set up FastAPI backend + Redis
 - Day 5: Run load test (100 calls), measure latency
 - **Deliverable:** Semantic cache working, -60% on repeats
 
 ### Week 3-6: Phase 2 (Hybrid RAG)
+
 - Week 3: Set up Pinecone + Elasticsearch
 - Week 4: Index Arizona property data (water rights, HOA rules, solar leases)
 - Week 5: Integrate hybrid retrieval into FastAPI
@@ -142,6 +157,7 @@ Cost per call (1,000 calls/month):        $0.92
 - **Deliverable:** <100ms knowledge retrieval, >95% accuracy
 
 ### Week 7-12: Phase 3 (Production Hardening)
+
 - Week 7-8: Deploy audio caching (S3 + Redis)
 - Week 9: Advanced monitoring (Grafana dashboards, alert rules)
 - Week 10: TCPA compliance logging + consent tracking
@@ -176,6 +192,7 @@ Cost per call (1,000 calls/month):        $0.92
 Your voice agent needs to know:
 
 ### Water Rights (ADWR Certificates)
+
 ```json
 {
   "property_id": "AZ-12345",
@@ -188,6 +205,7 @@ Your voice agent needs to know:
 ```
 
 ### Solar Lease Management
+
 ```json
 {
   "lease_type": "roof_mounted",
@@ -200,6 +218,7 @@ Your voice agent needs to know:
 ```
 
 ### TCPA Compliance (Telemarketing & AI Disclosure)
+
 ```json
 {
   "phone": "+1-480-xxx-xxxx",
@@ -211,6 +230,7 @@ Your voice agent needs to know:
 ```
 
 ### HOA Rules (Pre-loaded for disclosure)
+
 ```json
 {
   "hoa_name": "Paradise Valley Estates",
@@ -249,16 +269,19 @@ When all three phases are complete, you will have achieved:
 ## 🚀 IMMEDIATE ACTIONS (THIS WEEK)
 
 ### Tuesday (Tomorrow)
+
 - [ ] Review this summary (30 minutes)
 - [ ] Share with engineering team
 - [ ] Collect Vapi API key + OpenAI API key
 
 ### Wednesday-Thursday
+
 - [ ] Schedule Phase 1 kickoff (2 hours)
 - [ ] Read Phase 1 section in implementation-guide.md
 - [ ] Assign backend engineer to Phase 1
 
 ### Friday
+
 - [ ] Backend engineer deploys Vapi config (1 hour)
 - [ ] Run test script to measure baseline latency
 - [ ] Plan Phase 1 sprint (3-5 days)
@@ -303,6 +326,7 @@ When all three phases are complete, you will have achieved:
 **👉 Open `implementation-guide.md` → Phase 1 section**
 
 It contains:
+
 - Vapi Assistant Config JSON (copy-paste into Vapi dashboard)
 - FastAPI backend skeleton (copy-paste into your repo)
 - Testing script (measure current latency)
@@ -317,5 +341,5 @@ It contains:
 ---
 
 **Document version:** 1.0  
-**Last updated:** January 21, 2026, 2:33 PM PST  
+**Last updated:** January 22, 2026, 6:18 AM PST  
 **Status:** Ready for team distribution
