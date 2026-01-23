@@ -20,9 +20,11 @@ ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
 
 -- Create policies
 -- Allow read access to everyone (public API usage)
+DROP POLICY IF EXISTS "Enable read access for all users" ON properties;
 CREATE POLICY "Enable read access for all users" ON properties
     FOR SELECT USING (true);
 
 -- Allow write access only to service role (authenticated backend)
+DROP POLICY IF EXISTS "Enable write access for service role only" ON properties;
 CREATE POLICY "Enable write access for service role only" ON properties
     FOR ALL USING (auth.role() = 'service_role');

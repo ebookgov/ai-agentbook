@@ -41,7 +41,11 @@
             "description": "Any notes about the appointment"
           }
         },
-        "required": ["name", "email", "slot_time"]
+        "required": [
+          "name",
+          "email",
+          "slot_time"
+        ]
       },
       "server": {
         "url": "https://byllwcxvbxybaawrilec.supabase.co/functions/v1/vapi-handler"
@@ -59,7 +63,41 @@
             "description": "The topic to look up: solar_lease, hauled_water, hoa_fees, schools, price, square_footage"
           }
         },
-        "required": ["topic"]
+        "required": [
+          "topic"
+        ]
+      },
+      "server": {
+        "url": "https://byllwcxvbxybaawrilec.supabase.co/functions/v1/vapi-handler"
+      }
+    },
+    {
+      "type": "function",
+      "name": "lookupProperty",
+      "description": "Look up detailed property information from the database including water rights, solar leases, HOA details, and other Arizona-specific disclosures.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "description": "Property ID like AZ-FLAG-001 or a property name/address"
+          },
+          "query_type": {
+            "type": "string",
+            "enum": [
+              "all",
+              "water_rights",
+              "solar_lease",
+              "hoa",
+              "pricing",
+              "features"
+            ],
+            "description": "Type of information to retrieve. Default is 'all' for full property summary."
+          }
+        },
+        "required": [
+          "property_id"
+        ]
       },
       "server": {
         "url": "https://byllwcxvbxybaawrilec.supabase.co/functions/v1/vapi-handler"

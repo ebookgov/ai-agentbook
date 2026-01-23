@@ -60,24 +60,38 @@
           "messages": [
             {
               "role": "system",
-              "content": "You are Emma, the Property Specialist for EbookGov. Your ONLY goals are:\n\n1. Answer property questions from your knowledge base\n2. Help caller select a property to view\n3. Hand off to Booking Specialist when they want to schedule a showing\n\n## PROPERTY KNOWLEDGE BASE:\n\n### AZ-FLAG-001 - Mountain View Ranch\n- Price: $425,000 | 35 acres | Flagstaff area\n- Log cabin (2BR/2BA), well water, solar panels\n- San Francisco Peaks views, National Forest border\n\n### AZ-FLAG-002 - Ponderosa Homestead  \n- Price: $289,000 | 20 acres | Williams, AZ\n- 1,800 sqft home (3BR/2BA), detached workshop\n- 30 min to Grand Canyon, ponderosa pine forest\n\n### AZ-COC-001 - High Desert Retreat\n- Price: $175,000 | 40 acres | Parks, AZ\n- Raw land, cleared building site, power at road\n- Dark sky location, owner financing available\n\n### AZ-NAV-001 - Red Rock Ranch\n- Price: $549,000 | 80 acres | Winslow, AZ\n- Adobe home (3BR/2BA), barn, corrals\n- Working cattle ranch, Route 66 access\n\n### AZ-YAV-001 - Verde Valley Vineyard\n- Price: $225,000 | 10 acres | Camp Verde\n- Irrigated land, well, cleared building pad\n- Wine country, vineyard neighbors\n\n## WHEN TO HAND OFF:\n- Caller wants to book/schedule → Booking Specialist\n- Caller asks to speak with human → Transfer Specialist\n- Caller asks about pricing for EbookGov service → Transfer Specialist\n\n## PROHIBITED:\n- Never make up details not in knowledge base\n- Never book showings yourself"
+              "content": "You are Emma, the Property Specialist for EbookGov. Your ONLY goals are:\n\n1. Answer property questions using the lookupProperty tool\n2. Help caller select a property to view\n3. Hand off to Booking Specialist when they want to schedule a showing\n\n## AVAILABLE PROPERTIES:\n- AZ-FLAG-001 - Mountain View Ranch (Flagstaff)\n- AZ-FLAG-002 - Ponderosa Homestead (Williams)\n- AZ-COC-001 - High Desert Retreat (Parks)\n- AZ-NAV-001 - Red Rock Ranch (Winslow)\n- AZ-YAV-001 - Verde Valley Vineyard (Camp Verde)\n\n## HOW TO USE lookupProperty TOOL:\n- For general info: lookupProperty(property_id, 'all')\n- For water rights: lookupProperty(property_id, 'water_rights')\n- For solar lease: lookupProperty(property_id, 'solar_lease')\n- For HOA info: lookupProperty(property_id, 'hoa')\n- For pricing: lookupProperty(property_id, 'pricing')\n\n## WHEN TO HAND OFF:\n- Caller wants to book/schedule → Booking Specialist\n- Caller asks to speak with human → Transfer Specialist\n- Caller asks about pricing for EbookGov service → Transfer Specialist\n\n## PROHIBITED:\n- Never make up details - always use lookupProperty\n- Never book showings yourself"
             }
           ],
           "tools": [
             {
               "type": "function",
               "function": {
-                "name": "getPropertyDetails",
-                "description": "Get detailed property information",
+                "name": "lookupProperty",
+                "description": "Look up detailed property information including water rights, solar leases, HOA details",
                 "parameters": {
                   "type": "object",
                   "properties": {
-                    "propertyId": {
+                    "property_id": {
                       "type": "string",
-                      "description": "Property ID like AZ-FLAG-001"
+                      "description": "Property ID like AZ-FLAG-001 or property name"
+                    },
+                    "query_type": {
+                      "type": "string",
+                      "enum": [
+                        "all",
+                        "water_rights",
+                        "solar_lease",
+                        "hoa",
+                        "pricing",
+                        "features"
+                      ],
+                      "description": "Type of information to retrieve"
                     }
                   },
-                  "required": ["propertyId"]
+                  "required": [
+                    "property_id"
+                  ]
                 }
               }
             },
@@ -135,14 +149,32 @@
                 "parameters": {
                   "type": "object",
                   "properties": {
-                    "propertyId": { "type": "string" },
-                    "propertyName": { "type": "string" },
-                    "callerName": { "type": "string" },
-                    "callerPhone": { "type": "string" },
-                    "preferredDate": { "type": "string" },
-                    "preferredTime": { "type": "string" }
+                    "propertyId": {
+                      "type": "string"
+                    },
+                    "propertyName": {
+                      "type": "string"
+                    },
+                    "callerName": {
+                      "type": "string"
+                    },
+                    "callerPhone": {
+                      "type": "string"
+                    },
+                    "preferredDate": {
+                      "type": "string"
+                    },
+                    "preferredTime": {
+                      "type": "string"
+                    }
                   },
-                  "required": ["propertyId", "propertyName", "callerName", "callerPhone", "preferredDate"]
+                  "required": [
+                    "propertyId",
+                    "propertyName",
+                    "callerName",
+                    "callerPhone",
+                    "preferredDate"
+                  ]
                 }
               }
             },
@@ -195,12 +227,23 @@
                 "parameters": {
                   "type": "object",
                   "properties": {
-                    "callerName": { "type": "string" },
-                    "callerPhone": { "type": "string" },
-                    "reason": { "type": "string" },
-                    "demoCompleted": { "type": "boolean" }
+                    "callerName": {
+                      "type": "string"
+                    },
+                    "callerPhone": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "demoCompleted": {
+                      "type": "boolean"
+                    }
                   },
-                  "required": ["callerName", "callerPhone"]
+                  "required": [
+                    "callerName",
+                    "callerPhone"
+                  ]
                 }
               }
             }

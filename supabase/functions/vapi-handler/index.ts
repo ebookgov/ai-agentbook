@@ -46,6 +46,16 @@ serve(async (req) => {
              result: factSheet
            });
         }
+        
+        // --- TOOL: lookupProperty ---
+        else if (func.name === "lookupProperty") {
+          const args = JSON.parse(func.arguments);
+          const result = await lookupProperty(args.property_id, args.query_type);
+          results.push({
+            toolCallId: id,
+            result: result
+          });
+        }
       }
 
       return new Response(JSON.stringify({ results: results }), {
@@ -207,3 +217,125 @@ function getPropertyFacts(topic: string): string {
   };
   return FACTS[topic] || "I'll verify that information with the listing agent and include it in your appointment notes.";
 }
+
+// --- PROPERTY LOOKUP FROM SUPABASE ---
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://byllwcxvbxybaawrilec.supabase.co";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
+
+async function lookupProperty(propertyId: string, queryType?: string): Promise<string> {
+  try {
+    // Query the properties table
+    const url = `${SUPABASE_URL}/rest/v1/properties?or=(property_id.ilike.%${propertyId}%,name.ilike.%${propertyId}%)&limit=1`;
+    
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+      }
+    });
+    
+    if (!response.ok) {
+      console.error("Supabase query error:", await response.text());
+      return "I'm having trouble looking up that property. Let me take a note and have someone get back to you with the details.";
+    }
+    
+    const properties = await response.json();
+    
+    if (!properties || properties.length === 0) {
+      return `I couldn't find a property matching "${propertyId}". Could you double-check the property ID or name?`;
+    }
+    
+    const property = properties[0];
+    const type = queryType || "all";
+    
+    // Return specific information based on query_type
+    switch (type) {
+      case "water_rights":
+        return formatWaterRights(property);
+      case "solar_lease":
+        return formatSolarLease(property);
+      case "hoa":
+        return formatHOA(property);
+      case "pricing":
+        return formatPricing(property);
+      case "features":
+        return formatFeatures(property);
+      case "all":
+      default:
+        return formatFullSummary(property);
+    }
+  } catch (error) {
+    console.error("Property lookup error:", error);
+    return "I encountered an issue looking up the property. Let me note your question and have the agent follow up with complete details.";
+  }
+}
+
+function formatWaterRights(property: any): string {
+  const water = property.water_rights;
+  if (!water || Object.keys(water).length === 0) {
+    return `${property.name} doesn't have specific water rights information on file. I'll note this question for the agent.`;
+  }
+  const waterType = water.type || "municipal";
+  const details = water.details || "";
+  return `For ${property.name}: Water source is ${waterType}. ${details}`;
+}
+
+function formatSolarLease(property: any): string {
+  const solar = property.solar_lease;
+  if (!solar || Object.keys(solar).length === 0) {
+    return `${property.name} does not have a solar panel lease on record.`;
+  }
+  const provider = solar.provider || "unknown provider";
+  const monthly = solar.monthly_cost ? `$${solar.monthly_cost}/month` : "";
+  const remaining = solar.years_remaining ? `${solar.years_remaining} years remaining` : "";
+  const transferable = solar.transferable ? "It is transferable to the new owner." : "";
+  return `${property.name} has a solar lease with ${provider}. ${monthly} ${remaining}. ${transferable}`;
+}
+
+function formatHOA(property: any): string {
+  const hoa = property.hoa;
+  if (!hoa || Object.keys(hoa).length === 0) {
+    return `${property.name} is not part of an HOA, or there are no HOA fees on record.`;
+  }
+  const fee = hoa.monthly_fee ? `$${hoa.monthly_fee}/month` : "";
+  const covers = hoa.covers ? `Covers: ${hoa.covers}` : "";
+  return `${property.name} has HOA fees of ${fee}. ${covers}`;
+}
+
+function formatPricing(property: any): string {
+  const price = property.price_formatted || (property.price ? `$${property.price.toLocaleString()}` : "");
+  const financing = property.financing;
+  let financingInfo = "";
+  if (financing && Object.keys(financing).length > 0) {
+    financingInfo = financing.available ? "Owner financing may be available." : "";
+  }
+  return `${property.name} is listed at ${price}. ${financingInfo} For specific pricing negotiations, I'll connect you with the licensed agent.`;
+}
+
+function formatFeatures(property: any): string {
+  const features = property.features || {};
+  const acres = property.acreage ? `${property.acreage} acres` : "";
+  const bedrooms = features.bedrooms ? `${features.bedrooms} bedrooms` : "";
+  const bathrooms = features.bathrooms ? `${features.bathrooms} bathrooms` : "";
+  const structure = features.structure || "";
+  const highlights = property.highlights?.join(", ") || "";
+  
+  return `${property.name}: ${acres}, ${structure} with ${bedrooms}, ${bathrooms}. Highlights: ${highlights}`;
+}
+
+function formatFullSummary(property: any): string {
+  const name = property.name;
+  const price = property.price_formatted || (property.price ? `$${property.price.toLocaleString()}` : "Price on request");
+  const acres = property.acreage ? `${property.acreage} acres` : "";
+  const location = property.location?.city ? `in ${property.location.city}` : "";
+  const features = property.features || {};
+  const structure = features.structure || "";
+  const beds = features.bedrooms ? `${features.bedrooms}BR` : "";
+  const baths = features.bathrooms ? `${features.bathrooms}BA` : "";
+  
+  return `${name}: ${price}, ${acres} ${location}. ${structure} ${beds}/${baths}. Would you like details on water rights, solar lease, or HOA?`;
+}
+

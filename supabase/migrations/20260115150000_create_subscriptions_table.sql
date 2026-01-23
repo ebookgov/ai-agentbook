@@ -18,6 +18,7 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON public.subscriptions(stat
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Allow all operations for service role (webhook server uses service role key)
+DROP POLICY IF EXISTS "Enable all for service role" ON public.subscriptions;
 CREATE POLICY "Enable all for service role" ON public.subscriptions FOR ALL USING (true);
 
 -- Add table comment
