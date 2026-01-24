@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vapi FastAPI State Manager</title>
+    <style>
+        :root {
+            --color-primary: #2180 8D;
+            --color-primary-hover: #1C7480;
+            --color-bg: #FCFCF9;
+            --color-surface: #FFFFFF;
+            --color-text: #134252;
+            --color-text-secondary: #627C81;
+            --color-border: #EEE2DB;
+            --color-success: #208D8D;
+            --color-warning: #A84D2F;
+            --color-error: #C0152F;
+            --font-mono: "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: var(--color-text);
+            background-color: var(--color-bg);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--color-primary) 0%, #1C7480 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 32px;
+            font-weight: 600;
+        }
+
+        .header p {
+            margin: 0;
+            font-size: 16px;
+            opacity: 0.95;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--color-border);
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--color-text-secondary);
+            transition: all 0.2s;
+            margin-bottom: -2px;
+        }
+
+        .tab-btn.active {
+            color: var(--color-primary);
+            border-bottom-color: var(--color-primary);
+        }
+
+        .tab-btn:hover {
+            color: var(--color-primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .section {
+            background: var(--color-surface);
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .section h2 {
+            margin: 0 0 16px 0;
+            font-size: 20px;
+            color: var(--color-primary);
+            border-bottom: 2px solid var(--color-border);
+            padding-bottom: 12px;
+        }
+
+        .section h3 {
+            margin: 20px 0 12px 0;
+            font-size: 16px;
+            color: var(--color-text);
+        }
+
+        .code-block {
+            background: #1F2125;
+            color: #F5F5F5;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 12px 0;
+            border-left: 3px solid var(--color-primary);
+        }
+
+        .code-block code {
+            display: block;
+            white-space: pre;
+        }
+
+        .key { color: #569CD6; }
+        .string { color: #CE9178; }
+        .number { color: #B5CEA8; }
+        .keyword { color: #569CD6; }
+        .class-name { color: #4EC9B0; }
+        .comment { color: #6A9955; opacity: 0.8; }
+
+        .diagram {
+            background: #F5F5F5;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.8;
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+
+        .architecture-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin: 16px 0;
+        }
+
+        .component-card {
+            background: linear-gradient(135deg, rgba(33,128,141,0.05) 0%, rgba(28,116,128,0.05) 100%);
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            padding: 16px;
+        }
+
+        .component-card h4 {
+            margin: 0 0 8px 0;
+            color: var(--color-primary);
+            font-size: 14px;
+        }
+
+        .component-card p {
+            margin: 0;
+            font-size: 13px;
+            color: var(--color-text-secondary);
+            line-height: 1.5;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .status.success {
+            background: rgba(32,141,141,0.15);
+            color: var(--color-success);
+        }
+
+        .status.info {
+            background: rgba(33,128,141,0.15);
+            color: var(--color-primary);
+        }
+
+        .status.warning {
+            background: rgba(168,77,47,0.15);
+            color: var(--color-warning);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        th {
+            background: rgba(33,128,141,0.08);
+            color: var(--color-primary);
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: rgba(33,128,141,0.03);
+        }
+
+        .copy-btn {
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .copy-btn:hover {
+            background: var(--color-primary-hover);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--color-text-secondary);
+            border-top: 1px solid var(--color-border);
+            margin-top: 40px;
+        }
+
+        .metric {
+            display: inline-block;
+            background: rgba(33,128,141,0.08);
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-right: 12px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin: 12px 0;
+            border-left: 4px solid;
+        }
+
+        .alert.info {
+            background: rgba(33,128,141,0.08);
+            border-left-color: var(--color-primary);
+            color: var(--color-text);
+        }
+
+        .alert.warning {
+            background: rgba(168,77,47,0.08);
+            border-left-color: var(--color-warning);
+            color: var(--color-text);
+        }
+
+        .json-viewer {
+            background: #1F2125;
+            color: #F5F5F5;
+            padding: 16px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.5;
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+
+        .json-key { color: #569CD6; }
+        .json-value { color: #CE9178; }
+        .json-number { color: #B5CEA8; }
+        .json-bool { color: #569CD6; }
+        .json-null { color: #D4D4D4; }
+
+        .inline-code {
+            background: rgba(33,128,141,0.08);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--color-primary);
+        }
+
+        .list-item {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .list-item:before {
+            content: "→";
+            margin-right: 8px;
+            color: var(--color-primary);
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            margin: 16px 0;
+            padding: 12px;
+            background: rgba(33,128,141,0.03);
+            border-radius: 6px;
+            border-left: 3px solid var(--color-primary);
+        }
+
+        .flow-number {
+            background: var(--color-primary);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .flow-text {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .expand-section {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: rgba(33,128,141,0.05);
+            border-radius: 6px;
+            margin: 12px 0;
+            border-left: 3px solid var(--color-primary);
+        }
+
+        .expand-section:hover {
+            background: rgba(33,128,141,0.08);
+        }
+
+        .expand-icon {
+            transition: transform 0.2s;
+            font-size: 18px;
+        }
+
+        .expand-icon.open {
+            transform: rotate(180deg);
+        }
+
+        .expanded-content {
+            display: none;
+            padding: 16px;
+            background: rgba(33,128,141,0.03);
+            border-radius: 0 0 6px 6px;
+            margin-top: -4px;
+        }
+
+        .expanded-content.open {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .tabs {
+                gap: 5px;
+            }
+
+            .tab-btn {
+                padding: 10px 12px;
+                font-size: 12px;
+            }
+
+            .container {
+                padding: 20px 15px;
+            }
+
+            .section {
+                padding: 16px;
+            }
+
+            .code-block {
+                font-size: 11px;
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚡ Vapi FastAPI State Manager</h1>
+        <p>Production-Ready Implementation for Voice AI Appointment Booking</p>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+            <button class="tab-btn" onclick="switchTab('architecture')">Architecture</button>
+            <button class="tab-btn" onclick="switchTab('code')">Code</button>
+            <button class="tab-btn" onclick="switchTab('schemas')">Schemas</button>
+            <button class="tab-btn" onclick="switchTab('prompts')">System Prompts</button>
+            <button class="tab-btn" onclick="switchTab('guide')">Implementation</button>
+        </div>
+
+        <!-- OVERVIEW TAB -->
+        <div id="overview" class="tab-content active">
+            <div class="section">
+                <h2>System Overview</h2>
+                <p>A transient state manager for Vapi.ai voice agents that handles multi-turn conversation flows with dynamic state transitions. Designed for <span class="metric">&lt;100ms</span> latency and production scale.</p>
+
+                <h3>Key Features</h3>
+                <div class="list-item">Track conversation state per call_id (ephemeral, auto-cleanup)</div>
+                <div class="list-item">Tool-driven state transitions via `update_system_prompt` function</div>
+                <div class="list-item">Context persistence across states (lead data, preferences)</div>
+                <div class="list-item">Graceful error recovery with fallback behavior</div>
+                <div class="list-item">Sub-10ms state lookups with in-memory or Redis backend</div>
+
+                <h3>Use Case: Real Estate Appointment Booking</h3>
+                <div class="flow-step">
+                    <div class="flow-number">1</div>
+                    <div class="flow-text"><strong>QUALIFICATION</strong>: AI gathers lead info (budget, timeline, needs) → stores context server-side</div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">2</div>
+                    <div class="flow-text"><strong>BOOKING</strong>: AI transitions and offers available times → incorporates learned context</div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">3</div>
+                    <div class="flow-text"><strong>CONFIRMATION</strong>: AI confirms appointment → reads back all details</div>
+                </div>
+
+                <h3>Performance Metrics</h3>
+                <table>
+                    <tr>
+                        <th>Component</th>
+                        <th>Target Latency</th>
+                        <th>Status</th>
+                    </tr>
+                    <tr>
+                        <td>Vapi Webhook POST</td>
+                        <td>5-10ms</td>
+                        <td><span class="status success">✓ Achievable</span></td>
+                    </tr>
+                    <tr>
+                        <td>State Lookup (Dict)</td>
+                        <td>&lt;1ms</td>
+                        <td><span class="status success">✓ Typical</span></td>
+                    </tr>
+                    <tr>
+                        <td>State Validation</td>
+                        <td>&lt;2ms</td>
+                        <td><span class="status success">✓ Fast</span></td>
+                    </tr>
+                    <tr>
+                        <td>Tool Response Generation</td>
+                        <td>&lt;5ms</td>
+                        <td><span class="status success">✓ Typical</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>End-to-End Total</strong></td>
+                        <td><strong>&lt;50ms</strong></td>
+                        <td><span class="status success">✓ Well Within Budget</span></td>
+                    </tr>
+                </table>
+
+                <div class="alert info">
+                    <strong>💡 Design Decision:</strong> System prompts are <strong>not injected mid-call</strong> (Vapi limitation). Instead, state is tracked server-side and context is passed to the AI via tool results. The AI's existing system prompt instructions guide it to use the provided context naturally.
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Technology Stack</h2>
+                <div class="architecture-grid">
+                    <div class="component-card">
+                        <h4>FastAPI + Uvicorn</h4>
+                        <p>Native async/await, automatic JSON serialization, <10ms per-request overhead</p>
+                    </div>
+                    <div class="component-card">
+                        <h4>Pydantic v2</h4>
+                        <p>Strict type validation, fast JSON schema generation, runtime safety</p>
+                    </div>
+                    <div class="component-card">
+                        <h4>In-Memory Dict (Dev)</h4>
+                        <p>&lt;1ms lookup, unlimited calls (single process), ideal for prototyping</p>
+                    </div>
+                    <div class="component-card">
+                        <h4>Redis (Prod)</h4>
+                        <p>&lt;2ms latency, automatic TTL, distributed across multiple workers</p>
+                    </div>
+                    <div class="component-card">
+                        <h4>asyncio</h4>
+                        <p>Concurrent request handling, non-blocking I/O, zero blocking operations</p>
+                    </div>
+                    <div class="component-card">
+                        <h4>OpenTelemetry</h4>
+                        <p>Sub-100μs instrumentation overhead, distributed tracing, latency monitoring</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ARCHITECTURE TAB -->
+        <div id="architecture" class="tab-content">
+            <div class="section">
+                <h2>System Architecture</h2>
+
+                <h3>Webhook Lifecycle Flow</h3>
+                <div class="diagram">
+Vapi Call Initiated
+         │
+         ├─→ [1] POST /vapi/webhook (call-started)
+         │   ├─→ Initialize call state
+         │   ├─→ State: QUALIFICATION
+         │   └─→ Load initial system prompt
+         │
+         ├─→ [2] POST /vapi/webhook (tool-calls: update_system_prompt)
+         │   ├─→ Validate state transition
+         │   ├─→ Store accumulated context (lead_id, budget, etc)
+         │   ├─→ Update state: QUALIFICATION → BOOKING
+         │   └─→ Return tool result with context summary
+         │
+         ├─→ [3] POST /vapi/webhook (tool-calls: update_system_prompt)
+         │   ├─→ Validate transition
+         │   ├─→ Update state: BOOKING → CONFIRMATION
+         │   └─→ Return confirmation context
+         │
+         └─→ [4] POST /vapi/webhook (end-of-call-report)
+             ├─→ Store call metadata
+             ├─→ Cleanup state (TTL expires in 24h if not deleted)
+             └─→ Log completion
+                </div>
+
+                <h3>State Manager Internals</h3>
+                <div class="diagram">
+┌─────────────────────────────────────────────────┐
+│          In-Memory State Store (Dict)             │
+├─────────────────────────────────────────────────┤
+│                                                   │
+│  call_12345: {                                    │
+│    "state": "BOOKING",           ← Current State │
+│    "context": {                                   │
+│      "lead_id": "lead_99",                       │
+│      "budget": 500000,                           │
+│      "timeline": "3 months",                     │
+│      "property_type": "3BR"                      │
+│    },                                            │
+│    "created_at": "2025-01-23T18:30:00Z",        │
+│    "last_updated": "2025-01-23T18:30:45Z",      │
+│    "expires_at": "2025-01-24T18:30:00Z"         │
+│  }                                               │
+│                                                   │
+└─────────────────────────────────────────────────┘
+         ↑
+         │ lookup/update
+         │ &lt;1ms
+         ↓
+┌─────────────────────────────────────────────────┐
+│         Vapi Tool Call Handler                    │
+├─────────────────────────────────────────────────┤
+│                                                   │
+│ 1. Extract call_id + parameters                 │
+│ 2. Lookup state (Dict or Redis)                 │
+│ 3. Validate transition logic                    │
+│ 4. Update context with new data                 │
+│ 5. Return tool result with summary              │
+│ 6. Send response to Vapi                        │
+│                                                   │
+│ ⏱ Total: &lt;50ms                                │
+│                                                   │
+└─────────────────────────────────────────────────┘
+                </div>
+
+                <h3>State Transition Graph</h3>
+                <p><strong>Valid Transitions:</strong> (Prevents invalid flows)</p>
+                <div class="diagram">
+QUALIFICATION ──→ BOOKING ──→ CONFIRMATION
+      ↓                            ↓
+   [same state]              [same state]
+   [stay in]                 [stay in]
+                </div>
+
+                <p><strong>Rules:</strong></p>
+                <div class="list-item">Can only move forward in the flow</div>
+                <div class="list-item">Can stay in current state (idempotent)</div>
+                <div class="list_item">Cannot move backward (e.g., BOOKING → QUALIFICATION fails)</div>
+                <div class="list-item">Invalid states return 400 error</div>
+            </div>
+
+            <div class="section">
+                <h2>Context Flow Across States</h2>
+
+                <h3>QUALIFICATION State</h3>
+                <div class="diagram">
+Input: "I'm looking for a 3BR under $500k, need to move in 3 months"
+         │
+         ├─→ AI gathers: budget=500000, timeline="3mo", property_type="3BR"
+         │
+         └─→ Stored in State Manager:
+             {
+               "budget": 500000,
+               "timeline": "3 months",
+               "property_type": "3BR",
+               "location": "San Francisco"  (if collected)
+             }
+                </div>
+
+                <h3>BOOKING State</h3>
+                <div class="diagram">
+Tool Result Includes:
+"Your budget is $500k, timeline 3mo, 3BR. 
+ Available showings: Tuesday 3pm or Wednesday 10am"
+         │
+         └─→ AI uses provided context in response naturally
+             (follows system prompt to reference learned info)
+                </div>
+
+                <h3>CONFIRMATION State</h3>
+                <div class="diagram">
+Tool Result Includes Full Recap:
+"Confirming: 3BR property showing Tuesday 3pm. 
+ Budget $500k, timeline 3mo. Is this correct?"
+         │
+         └─→ AI reads back complete appointment details
+                </div>
+            </div>
+        </div>
+
+        <!-- CODE TAB -->
+        <div id="code" class="tab-content">
+            <div class="section">
+                <h2>state_manager.py</h2>
+                <p>Core state management class with in-memory and Redis support.</p>
+
+                <div class="code-block"><code><span class="comment"># state_manager.py - Production-Ready State Manager</span>
+<span class="keyword">from</span> <span class="class-name">dataclasses</span> <span class="keyword">import</span> dataclass, asdict
+<span class="keyword">from</span> <span class="class-name">typing</span> <span class="keyword">import</span> Dict, Optional, Any
+<span class="keyword">from</span> <span class="class-name">datetime</span> <span class="keyword">import</span> datetime, timedelta
+<span class="keyword">from</span> <span class="class-name">enum</span> <span class="keyword">import</span> Enum
+<span class="keyword">import</span> <span class="class-name">json</span>
+<span class="keyword">import</span> <span class="class-name">redis.asyncio</span> <span class="keyword">as</span> redis
+<span class="keyword">from</span> <span class="class-name">pydantic</span> <span class="keyword">import</span> BaseModel, Field
+
+<span class="keyword">class</span> <span class="class-name">ConversationState</span>(str, Enum):
+    QUALIFICATION = <span class="string">"QUALIFICATION"</span>
+    BOOKING = <span class="string">"BOOKING"</span>
+    CONFIRMATION = <span class="string">"CONFIRMATION"</span>
+
+<span class="keyword">class</span> <span class="class-name">CallState</span>(BaseModel):
+    state: ConversationState
+    context: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    last_updated: datetime
+    ttl_seconds: <span class="class-name">int</span> = <span class="number">3600</span>
+
+<span class="keyword">class</span> <span class="class-name">StateManager</span>:
+    <span class="comment">"""Manages call state with automatic expiration."""</span>
+
+    VALID_TRANSITIONS = {
+        ConversationState.QUALIFICATION: [
+            ConversationState.QUALIFICATION,
+            ConversationState.BOOKING
+        ],
+        ConversationState.BOOKING: [
+            ConversationState.BOOKING,
+            ConversationState.CONFIRMATION
+        ],
+        ConversationState.CONFIRMATION: [
+            ConversationState.CONFIRMATION
+        ],
+    }
+
+    <span class="keyword">def</span> __init__(self, redis_url: Optional[str] = None):
+        self.redis_url = redis_url
+        self.redis_client: Optional[redis.Redis] = None
+        self.in_memory_store: Dict[str, CallState] = {}
+
+    <span class="keyword">async</span> <span class="keyword">def</span> init(self):
+        <span class="comment">"""Initialize async connections."""</span>
+        <span class="keyword">if</span> self.redis_url:
+            self.redis_client = <span class="keyword">await</span> redis.from_url(
+                self.redis_url,
+                decode_responses=True
+            )
+
+    <span class="keyword">async</span> <span class="keyword">def</span> init_call(
+        self,
+        call_id: str,
+        initial_state: ConversationState = ConversationState.QUALIFICATION
+    ) -> CallState:
+        <span class="comment">"""Initialize state for new call."""</span>
+        state = CallState(
+            state=initial_state,
+            context={},
+            created_at=datetime.utcnow(),
+            last_updated=datetime.utcnow()
+        )
+        <span class="keyword">await</span> self.set_state(call_id, state)
+        <span class="keyword">return</span> state
+
+    <span class="keyword">async</span> <span class="keyword">def</span> get_state(self, call_id: str) -> Optional[CallState]:
+        <span class="comment">"""Retrieve call state with TTL check."""</span>
+        <span class="keyword">if</span> self.redis_client:
+            data = <span class="keyword">await</span> self.redis_client.get(call_id)
+            <span class="keyword">if</span> data:
+                <span class="keyword">return</span> CallState(**json.loads(data))
+        <span class="keyword">else</span>:
+            <span class="keyword">if</span> call_id <span class="keyword">in</span> self.in_memory_store:
+                <span class="keyword">return</span> self.in_memory_store[call_id]
+        <span class="keyword">return</span> None
+
+    <span class="keyword">async</span> <span class="keyword">def</span> set_state(self, call_id: str, state: CallState):
+        <span class="comment">"""Store/update call state."""</span>
+        <span class="keyword">if</span> self.redis_client:
+            <span class="keyword">await</span> self.redis_client.setex(
+                call_id,
+                state.ttl_seconds,
+                json.dumps(asdict(state), default=str)
+            )
+        <span class="keyword">else</span>:
+            self.in_memory_store[call_id] = state
+
+    <span class="keyword">async</span> <span class="keyword">def</span> transition_state(
+        self,
+        call_id: str,
+        new_state: ConversationState,
+        context_update: Dict[str, Any]
+    ) -> tuple[bool, str]:
+        <span class="comment">"""Validate and apply state transition."""</span>
+        current = <span class="keyword">await</span> self.get_state(call_id)
+        <span class="keyword">if</span> <span class="keyword">not</span> current:
+            <span class="keyword">return</span> False, <span class="string">"Call state not found"</span>
+
+        <span class="comment"># Validate transition</span>
+        <span class="keyword">if</span> new_state <span class="keyword">not</span> <span class="keyword">in</span> self.VALID_TRANSITIONS.get(
+            current.state, []
+        ):
+            <span class="keyword">return</span> False, f<span class="string">"Invalid: {current.state} → {new_state}"</span>
+
+        <span class="comment"># Update state</span>
+        current.state = new_state
+        current.context.update(context_update)
+        current.last_updated = datetime.utcnow()
+        <span class="keyword">await</span> self.set_state(call_id, current)
+
+        <span class="keyword">return</span> True, <span class="string">"OK"</span>
+
+    <span class="keyword">async</span> <span class="keyword">def</span> cleanup_call(self, call_id: str):
+        <span class="comment">"""Delete call state immediately."""</span>
+        <span class="keyword">if</span> self.redis_client:
+            <span class="keyword">await</span> self.redis_client.delete(call_id)
+        <span class="keyword">else</span>:
+            self.in_memory_store.pop(call_id, None)</code></div>
+            </div>
+
+            <div class="section">
+                <h2>vapi_webhook.py</h2>
+                <p>FastAPI webhook handler with automatic state initialization and transitions.</p>
+
+                <div class="code-block"><code><span class="comment"># vapi_webhook.py - Vapi Webhook Handler</span>
+<span class="keyword">from</span> <span class="class-name">fastapi</span> <span class="keyword">import</span> FastAPI, Request, HTTPException, Depends
+<span class="keyword">from</span> <span class="class-name">pydantic</span> <span class="keyword">import</span> BaseModel
+<span class="keyword">from</span> <span class="class-name">typing</span> <span class="keyword">import</span> List, Optional, Dict, Any
+<span class="keyword">import</span> <span class="class-name">logging</span>
+<span class="keyword">from</span> <span class="class-name">state_manager</span> <span class="keyword">import</span> StateManager, ConversationState
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+<span class="comment"># Global state manager instance</span>
+state_manager = StateManager(redis_url=None)  <span class="comment"># Use None for dev, set URL for prod</span>
+
+app = FastAPI()
+
+<span class="keyword">class</span> <span class="class-name">ToolCall</span>(BaseModel):
+    id: str
+    name: str
+    arguments: Dict[str, Any]
+
+<span class="keyword">class</span> <span class="class-name">VapiWebhookRequest</span>(BaseModel):
+    message: Dict[str, Any]
+
+<span class="keyword">class</span> <span class="class-name">ToolCallResult</span>(BaseModel):
+    toolCallId: str
+    result: str
+
+<span class="keyword">class</span> <span class="class-name">VapiWebhookResponse</span>(BaseModel):
+    results: List[ToolCallResult]
+
+@app.on_event(<span class="string">"startup"</span>)
+<span class="keyword">async</span> <span class="keyword">def</span> startup():
+    <span class="keyword">await</span> state_manager.init()
+
+@app.post(<span class="string">"/vapi/state-webhook"</span>)
+<span class="keyword">async</span> <span class="keyword">def</span> vapi_webhook(request: VapiWebhookRequest):
+    <span class="comment">"""Handle Vapi webhook events."""</span>
+    message = request.message
+    msg_type = message.get(<span class="string">"type"</span>)
+    call_id = message.get(<span class="string">"call"</span>, {}).get(<span class="string">"id"</span>)
+
+    <span class="keyword">if</span> <span class="keyword">not</span> call_id:
+        <span class="keyword">raise</span> HTTPException(status_code=400, detail=<span class="string">"Missing call_id"</span>)
+
+    <span class="comment"># [1] Handle call-started: Initialize state</span>
+    <span class="keyword">if</span> msg_type == <span class="string">"call-started"</span>:
+        <span class="keyword">await</span> state_manager.init_call(
+            call_id,
+            initial_state=ConversationState.QUALIFICATION
+        )
+        logger.info(f<span class="string">"Call {call_id} started"</span>)
+        <span class="keyword">return</span> {<span class="string">"status"</span>: <span class="string">"ok"</span>}
+
+    <span class="comment"># [2] Handle tool-calls: State transitions</span>
+    <span class="keyword">if</span> msg_type == <span class="string">"tool-calls"</span>:
+        <span class="keyword">return</span> <span class="keyword">await</span> handle_tool_call(
+            call_id,
+            message.get(<span class="string">"toolCallList"</span>, [])
+        )
+
+    <span class="comment"># [3] Handle end-of-call-report: Cleanup</span>
+    <span class="keyword">if</span> msg_type == <span class="string">"end-of-call-report"</span>:
+        <span class="keyword">await</span> state_manager.cleanup_call(call_id)
+        logger.info(f<span class="string">"Call {call_id} ended, state cleaned up"</span>)
+        <span class="keyword">return</span> {<span class="string">"status"</span>: <span class="string">"ok"</span>}
+
+    <span class="keyword">return</span> {<span class="string">"status"</span>: <span class="string">"ok"</span>}
+
+<span class="keyword">async</span> <span class="keyword">def</span> handle_tool_call(
+    call_id: str,
+    tool_calls: List[Dict[str, Any]]
+) -> VapiWebhookResponse:
+    <span class="comment">"""Process tool calls and return results."""</span>
+    results = []
+
+    <span class="keyword">for</span> tool_call <span class="keyword">in</span> tool_calls:
+        tool_id = tool_call.get(<span class="string">"id"</span>)
+        tool_name = tool_call.get(<span class="string">"name"</span>)
+        args = tool_call.get(<span class="string">"arguments"</span>, {})
+
+        <span class="keyword">if</span> tool_name == <span class="string">"update_system_prompt"</span>:
+            new_state_str = args.get(<span class="string">"new_state"</span>)
+            context_data = args.get(<span class="string">"context_summary"</span>, {})
+
+            <span class="keyword">try</span>:
+                new_state = ConversationState(new_state_str)
+            <span class="keyword">except</span> ValueError:
+                results.append(ToolCallResult(
+                    toolCallId=tool_id,
+                    result=<span class="string">"Invalid state. Use: QUALIFICATION, BOOKING, CONFIRMATION"</span>
+                ))
+                <span class="keyword">continue</span>
+
+            <span class="comment"># Validate transition</span>
+            success, msg = <span class="keyword">await</span> state_manager.transition_state(
+                call_id,
+                new_state,
+                context_data <span class="keyword">if</span> <span class="keyword">isinstance</span>(context_data, dict) <span class="keyword">else</span> {}
+            )
+
+            <span class="keyword">if</span> success:
+                current = <span class="keyword">await</span> state_manager.get_state(call_id)
+                context_summary = json.dumps(current.context, indent=2)
+
+                result_text = f<span class="string">"Transitioned to {new_state}. Context: {context_summary}"</span>
+                logger.info(f<span class="string">"Call {call_id}: {result_text}"</span>)
+
+                results.append(ToolCallResult(
+                    toolCallId=tool_id,
+                    result=result_text
+                ))
+            <span class="keyword">else</span>:
+                results.append(ToolCallResult(
+                    toolCallId=tool_id,
+                    result=f<span class="string">"Transition failed: {msg}"</span>
+                ))
+
+    <span class="keyword">return</span> VapiWebhookResponse(results=results)</code></div>
+            </div>
+
+            <div class="section">
+                <h2>main.py - Complete Application</h2>
+
+                <div class="code-block"><code><span class="comment"># main.py - Complete FastAPI Application</span>
+<span class="keyword">import</span> <span class="class-name">uvicorn</span>
+<span class="keyword">from</span> <span class="class-name">fastapi</span> <span class="keyword">import</span> FastAPI
+<span class="keyword">from</span> <span class="class-name">fastapi.responses</span> <span class="keyword">import</span> JSONResponse
+
+<span class="comment"># Import from vapi_webhook.py</span>
+<span class="keyword">from</span> <span class="class-name">vapi_webhook</span> <span class="keyword">import</span> app
+
+<span class="comment"># Health check endpoint</span>
+@app.get(<span class="string">"/health"</span>)
+<span class="keyword">async</span> <span class="keyword">def</span> health_check():
+    <span class="keyword">return</span> {<span class="string">"status"</span>: <span class="string">"healthy"</span>, <span class="string">"service"</span>: <span class="string">"vapi-state-manager"</span>}
+
+<span class="keyword">if</span> __name__ == <span class="string">"__main__"</span>:
+    <span class="comment"># Run with: python main.py</span>
+    <span class="comment"># Production: gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app</span>
+    uvicorn.run(
+        <span class="string">"main:app"</span>,
+        host=<span class="string">"0.0.0.0"</span>,
+        port=<span class="number">8000</span>,
+        reload=True  <span class="comment"># Set False in production</span>
+    )</code></div>
+            </div>
+        </div>
+
+        <!-- SCHEMAS TAB -->
+        <div id="schemas" class="tab-content">
+            <div class="section">
+                <h2>Vapi Tool Definition</h2>
+                <p>Add this tool to your Vapi assistant via API or dashboard.</p>
+
+                <h3>JSON Configuration (via API)</h3>
+                <div class="json-viewer"><code>POST https://api.vapi.ai/tool
+
+{
+  "<span class="json-key">type</span>": "<span class="json-value">function</span>",
+  "<span class="json-key">async</span>": <span class="json-bool">false</span>,
+  "<span class="json-key">function</span>": {
+    "<span class="json-key">name</span>": "<span class="json-value">update_system_prompt</span>",
+    "<span class="json-key">description</span>": "<span class="json-value">Transition conversation state and update context. Call this when moving from Qualification to Booking or Booking to Confirmation.</span>",
+    "<span class="json-key">parameters</span>": {
+      "<span class="json-key">type</span>": "<span class="json-value">object</span>",
+      "<span class="json-key">properties</span>": {
+        "<span class="json-key">new_state</span>": {
+          "<span class="json-key">type</span>": "<span class="json-value">string</span>",
+          "<span class="json-key">enum</span>": ["<span class="json-value">QUALIFICATION</span>", "<span class="json-value">BOOKING</span>", "<span class="json-value">CONFIRMATION</span>"],
+          "<span class="json-key">description</span>": "<span class="json-value">Target conversation state</span>"
+        },
+        "<span class="json-key">context_summary</span>": {
+          "<span class="json-key">type</span>": "<span class="json-value">object</span>",
+          "<span class="json-key">description</span>": "<span class="json-value">Optional context to store (lead info, preferences)</span>"
+        }
+      },
+      "<span class="json-key">required</span>": ["<span class="json-value">new_state</span>"]
+    }
+  },
+  "<span class="json-key">server</span>": {
+    "<span class="json-key">url</span>": "<span class="json-value">https://your-backend.com/vapi/state-webhook</span>"
+  },
+  "<span class="json-key">messages</span>": [
+    {
+      "<span class="json-key">type</span>": "<span class="json-value">request-start</span>",
+      "<span class="json-key">content</span>": "<span class="json-value">Updating conversation state...</span>"
+    },
+    {
+      "<span class="json-key">type</span>": "<span class="json-value">request-complete</span>",
+      "<span class="json-key">content</span>": "<span class="json-value">State updated successfully</span>"
+    },
+    {
+      "<span class="json-key">type</span>": "<span class="json-value">request-failed</span>",
+      "<span class="json-key">content</span>": "<span class="json-value">Could not update state. Please try again.</span>"
+    }
+  ]
+}</code></div>
+            </div>
+
+            <div class="section">
+                <h2>Webhook Request Format</h2>
+                <p>What you receive from Vapi for a tool call:</p>
+
+                <div class="json-viewer"><code>{
+  "<span class="json-key">message</span>": {
+    "<span class="json-key">type</span>": "<span class="json-value">tool-calls</span>",
+    "<span class="json-key">toolCallList</span>": [
+      {
+        "<span class="json-key">id</span>": "<span class="json-value">toolu_01DTPAzUm5Gk3zxrpJ969oMF</span>",
+        "<span class="json-key">name</span>": "<span class="json-value">update_system_prompt</span>",
+        "<span class="json-key">arguments</span>": {
+          "<span class="json-key">new_state</span>": "<span class="json-value">BOOKING</span>",
+          "<span class="json-key">context_summary</span>": {
+            "<span class="json-key">budget</span>": <span class="json-number">500000</span>,
+            "<span class="json-key">timeline</span>": "<span class="json-value">3 months</span>",
+            "<span class="json-key">property_type</span>": "<span class="json-value">3BR</span>"
+          }
+        }
+      }
+    ]
+  },
+  "<span class="json-key">call</span>": {
+    "<span class="json-key">id</span>": "<span class="json-value">call_abc123def456</span>"
+  }
+}</code></div>
+            </div>
+
+            <div class="section">
+                <h2>Webhook Response Format</h2>
+                <p>What you send back to Vapi with tool results:</p>
+
+                <div class="json-viewer"><code>{
+  "<span class="json-key">results</span>": [
+    {
+      "<span class="json-key">toolCallId</span>": "<span class="json-value">toolu_01DTPAzUm5Gk3zxrpJ969oMF</span>",
+      "<span class="json-key">result</span>": "<span class="json-value">Transitioned to BOOKING. Context: {\n  \"budget\": 500000,\n  \"timeline\": \"3 months\",\n  \"property_type\": \"3BR\"\n}</span>"
+    }
+  ]
+}</code></div>
+            </div>
+
+            <div class="section">
+                <h2>Call State Schema</h2>
+                <p>Structure stored server-side for each call:</p>
+
+                <div class="json-viewer"><code>{
+  "<span class="json-key">state</span>": "<span class="json-value">BOOKING</span>",
+  "<span class="json-key">context</span>": {
+    "<span class="json-key">lead_id</span>": "<span class="json-value">lead_99</span>",
+    "<span class="json-key">budget</span>": <span class="json-number">500000</span>,
+    "<span class="json-key">timeline</span>": "<span class="json-value">3 months</span>",
+    "<span class="json-key">property_type</span>": "<span class="json-value">3BR</span>",
+    "<span class="json-key">location</span>": "<span class="json-value">San Francisco</span>",
+    "<span class="json-key">phone</span>": "<span class="json-value">+1-555-0100</span>"
+  },
+  "<span class="json-key">created_at</span>": "<span class="json-value">2025-01-23T18:30:00Z</span>",
+  "<span class="json-key">last_updated</span>": "<span class="json-value">2025-01-23T18:30:45Z</span>",
+  "<span class="json-key">ttl_seconds</span>": <span class="json-number">3600</span>
+}</code></div>
+            </div>
+        </div>
+
+        <!-- PROMPTS TAB -->
+        <div id="prompts" class="tab-content">
+            <div class="section">
+                <h2>System Prompts by State</h2>
+                <p>Use these in your Vapi assistant configuration. The AI naturally uses context passed in tool results.</p>
+
+                <h3>1. QUALIFICATION Prompt</h3>
+                <div style="background: #f9f5f0; padding: 16px; border-radius: 6px; border-left: 3px solid var(--color-primary); margin: 12px 0;">
+                    <code style="white-space: pre-wrap; color: var(--color-text); font-family: var(--font-mono); font-size: 13px;">You are a real estate qualification specialist. Your goal is to understand the buyer's needs before scheduling a property showing.
+
+Ask about:
+1. **Budget**: "What's your budget range for this property?"
+2. **Timeline**: "When are you looking to move or make a purchase?"
+3. **Property Type**: "Are you looking for a specific type of property (e.g., 3BR, condo, house)?"
+4. **Location**: "Any preferred neighborhoods or areas?"
+5. **Special Requirements**: Pools, yard, garage, etc.
+
+Gather information conversationally. When you have enough details (budget, timeline, property type), call the `update_system_prompt` tool with:
+- new_state: "BOOKING"
+- context_summary: (object with budget, timeline, property_type, etc.)
+
+Be friendly and conversational. Don't rush the process.</code>
+                </div>
+
+                <h3>2. BOOKING Prompt</h3>
+                <div style="background: #f0f9f5; padding: 16px; border-radius: 6px; border-left: 3px solid var(--color-warning); margin: 12px 0;">
+                    <code style="white-space: pre-wrap; color: var(--color-text); font-family: var(--font-mono); font-size: 13px;">You are a real estate booking specialist. The buyer has been qualified. Your goal is to schedule a property showing.
+
+You have context about the buyer's needs (budget, timeline, property type, location). Reference this naturally in your responses. For example: "Great! Based on your $500k budget and interest in 3BR homes, I have some perfect properties to show you."
+
+Offer 3 specific time slots for the showing:
+1. Tuesday, 3:00 PM
+2. Wednesday, 10:00 AM
+3. Thursday, 2:00 PM
+
+Confirm their preferred time. When they select a time, call the `update_system_prompt` tool with:
+- new_state: "CONFIRMATION"
+- context_summary: (include time_selected, property_address if known)
+
+Be professional and helpful. Provide directions or Zoom link if needed.</code>
+                </div>
+
+                <h3>3. CONFIRMATION Prompt</h3>
+                <div style="background: #f5f0f9; padding: 16px; border-radius: 6px; border-left: 3px solid #A84D2F; margin: 12px 0;">
+                    <code style="white-space: pre-wrap; color: var(--color-text); font-family: var(--font-mono); font-size: 13px;">You are a real estate appointment confirmation specialist. Your goal is to confirm all details and provide next steps.
+
+Read back the complete appointment:
+- Buyer's needs (budget, timeline, property type)
+- Property address or details
+- Date and time of showing
+- Where to meet (in-person address or Zoom link)
+- Any preparation tips
+
+Ask: "Is there anything else you need before your showing?"
+
+If they have questions, answer them. Otherwise, thank them for their time and remind them to arrive 5 minutes early.
+
+Keep it brief and professional. This is the final call interaction.</code>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Prompt Integration Notes</h2>
+
+                <div class="alert info">
+                    <strong>✓ Key Design:</strong> Each prompt includes <strong>when and how</strong> to call the `update_system_prompt` tool. The AI learns the state transition rules from the prompt itself.
+                </div>
+
+                <div class="alert warning">
+                    <strong>⚠ Important:</strong> Vapi does <strong>NOT</strong> reload the system prompt mid-call. The system prompts above are configured <strong>initially</strong> for your assistant. State transitions are tracked server-side, and context is passed back via tool results.
+                </div>
+
+                <h3>Best Practices</h3>
+                <div class="list-item">Include context references in tool results so the AI uses them naturally</div>
+                <div class="list-item">Make transition criteria explicit ("when you have enough details...")</div>
+                <div class="list-item">Add encouraging language to guide the AI behavior</div>
+                <div class="list-item">Test each state's prompt independently with different user inputs</div>
+            </div>
+        </div>
+
+        <!-- GUIDE TAB -->
+        <div id="guide" class="tab-content">
+            <div class="section">
+                <h2>Step-by-Step Implementation</h2>
+
+                <h3>Phase 1: Local Development (In-Memory State)</h3>
+                <div class="flow-step">
+                    <div class="flow-number">1</div>
+                    <div class="flow-text">Clone repository and install dependencies:<br><span class="inline-code">pip install fastapi uvicorn pydantic python-dotenv</span></div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">2</div>
+                    <div class="flow-text">Create <span class="inline-code">state_manager.py</span> with the code from the Code tab</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">3</div>
+                    <div class="flow-text">Create <span class="inline-code">vapi_webhook.py</span> with the webhook handler</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">4</div>
+                    <div class="flow-text">Create <span class="inline-code">main.py</span> and run:<br><span class="inline-code">python main.py</span></div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">5</div>
+                    <div class="flow-text">Expose with ngrok:<br><span class="inline-code">ngrok http 8000</span></div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">6</div>
+                    <div class="flow-text">Test with curl (see section below)</div>
+                </div>
+
+                <h3>Phase 2: Vapi Integration</h3>
+                <div class="flow-step">
+                    <div class="flow-number">1</div>
+                    <div class="flow-text">Go to Vapi Dashboard → Tools → Create Tool</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">2</div>
+                    <div class="flow-text">Use JSON from Schemas tab (update_system_prompt tool definition)</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">3</div>
+                    <div class="flow-text">Set Server URL to your ngrok URL: <span class="inline-code">https://abc123.ngrok.io/vapi/state-webhook</span></div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">4</div>
+                    <div class="flow-text">Create/edit an Assistant and add the tool to its Tools section</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">5</div>
+                    <div class="flow-text">Use system prompts from Prompts tab in your Assistant configuration</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">6</div>
+                    <div class="flow-text">Make test call and watch webhook logs</div>
+                </div>
+
+                <h3>Phase 3: Production Deployment</h3>
+                <div class="flow-step">
+                    <div class="flow-number">1</div>
+                    <div class="flow-text">Switch to Redis backend by setting <span class="inline-code">redis_url</span> in StateManager</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">2</div>
+                    <div class="flow-text">Deploy with gunicorn:<br><span class="inline-code">gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app</span></div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">3</div>
+                    <div class="flow-text">Update Vapi webhook URL to production domain</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">4</div>
+                    <div class="flow-text">Set up monitoring and alerting (see Monitoring section)</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">5</div>
+                    <div class="flow-number">5</div>
+                    <div class="flow-text">Enable SSL/TLS on webhook endpoint</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Testing with curl</h2>
+
+                <h3>Test 1: Call Started</h3>
+                <div class="code-block"><code><span class="keyword">curl</span> -X POST http://localhost:8000/vapi/state-webhook \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "message": {
+      "type": "call-started"
+    },
+    "call": {
+      "id": "call_test_001"
+    }
+  }'</span></code></div>
+
+                <h3>Test 2: Tool Call - QUALIFICATION → BOOKING</h3>
+                <div class="code-block"><code><span class="keyword">curl</span> -X POST http://localhost:8000/vapi/state-webhook \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "message": {
+      "type": "tool-calls",
+      "toolCallList": [
+        {
+          "id": "toolcall_001",
+          "name": "update_system_prompt",
+          "arguments": {
+            "new_state": "BOOKING",
+            "context_summary": {
+              "budget": 500000,
+              "timeline": "3 months",
+              "property_type": "3BR"
+            }
+          }
+        }
+      ]
+    },
+    "call": {
+      "id": "call_test_001"
+    }
+  }'</span></code></div>
+
+                <h3>Expected Response</h3>
+                <div class="json-viewer"><code>{
+  "<span class="json-key">results</span>": [
+    {
+      "<span class="json-key">toolCallId</span>": "<span class="json-value">toolcall_001</span>",
+      "<span class="json-key">result</span>": "<span class="json-value">Transitioned to BOOKING. Context: {\n  \"budget\": 500000,\n  \"timeline\": \"3 months\",\n  \"property_type\": \"3BR\"\n}</span>"
+    }
+  ]
+}</code></div>
+            </div>
+
+            <div class="section">
+                <h2>Monitoring & Metrics</h2>
+
+                <h3>Key Metrics to Track</h3>
+                <table>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Target</th>
+                        <th>Alert Threshold</th>
+                    </tr>
+                    <tr>
+                        <td>Webhook Response Latency (p50)</td>
+                        <td>&lt;20ms</td>
+                        <td>&gt;50ms</td>
+                    </tr>
+                    <tr>
+                        <td>Webhook Response Latency (p99)</td>
+                        <td>&lt;80ms</td>
+                        <td>&gt;150ms</td>
+                    </tr>
+                    <tr>
+                        <td>State Lookup Time</td>
+                        <td>&lt;2ms</td>
+                        <td>&gt;10ms</td>
+                    </tr>
+                    <tr>
+                        <td>Transition Validation Errors</td>
+                        <td>&lt;0.1%</td>
+                        <td>&gt;1%</td>
+                    </tr>
+                    <tr>
+                        <td>Redis Connection Pool Utilization</td>
+                        <td>&lt;70%</td>
+                        <td>&gt;90%</td>
+                    </tr>
+                    <tr>
+                        <td>Active Concurrent Calls</td>
+                        <td>N/A</td>
+                        <td>Depends on infra</td>
+                    </tr>
+                </table>
+
+                <h3>Recommended Logging</h3>
+                <div class="code-block"><code>logger.info(f<span class="string">"Call {call_id} transitioned {old_state} → {new_state}"</span>)
+logger.warning(f<span class="string">"Invalid transition {old_state} → {new_state}"</span>)
+logger.error(f<span class="string">"State lookup failed for {call_id}: {error}"</span>)
+logger.info(f<span class="string">"Webhook latency: {elapsed_ms}ms"</span>)</code></div>
+
+                <h3>Sample Prometheus Metrics</h3>
+                <div class="code-block"><code><span class="comment"># Counter: state transitions</span>
+vapi_state_transitions_total{from_state=<span class="string">"QUALIFICATION"</span>, to_state=<span class="string">"BOOKING"</span>} <span class="number">1250</span>
+
+<span class="comment"># Histogram: latency</span>
+vapi_webhook_latency_ms_bucket{le=<span class="string">"50"</span>} <span class="number">3240</span>
+vapi_webhook_latency_ms_bucket{le=<span class="string">"100"</span>} <span class="number">3245</span>
+
+<span class="comment"># Gauge: active calls</span>
+vapi_active_calls_total <span class="number">45</span></code></div>
+            </div>
+
+            <div class="section">
+                <h2>Troubleshooting</h2>
+
+                <div class="expand-section" onclick="toggleExpand(this)">
+                    <span><strong>Q: "Invalid state" errors when transitioning</strong></span>
+                    <span class="expand-icon">▼</span>
+                </div>
+                <div class="expanded-content">
+                    <p><strong>A:</strong> Check the VALID_TRANSITIONS dict in state_manager.py. Transitions must follow: QUALIFICATION → BOOKING → CONFIRMATION. Cannot move backward or skip states.</p>
+                    <p>Example: BOOKING → QUALIFICATION will fail.</p>
+                </div>
+
+                <div class="expand-section" onclick="toggleExpand(this)">
+                    <span><strong>Q: State not persisting between calls</strong></span>
+                    <span class="expand-icon">▼</span>
+                </div>
+                <div class="expanded-content">
+                    <p><strong>A:</strong> Ensure call_id is consistent. Each unique call_id gets its own state. If using different call_ids, states won't overlap (correct behavior).</p>
+                    <p>Verify Vapi is sending the same call.id in all webhooks for the same call.</p>
+                </div>
+
+                <div class="expand-section" onclick="toggleExpand(this)">
+                    <span><strong>Q: High latency on state transitions (>100ms)</strong></span>
+                    <span class="expand-icon">▼</span>
+                </div>
+                <div class="expanded-content">
+                    <p><strong>A:</strong> Check:</p>
+                    <div class="list-item">Redis latency: Run <span class="inline-code">redis-cli --latency</span></div>
+                    <div class="list-item">Network: Ensure Vapi webhook endpoint is in same region as backend</div>
+                    <div class="list-item">Server load: Monitor CPU/memory; scale with load balancer if needed</div>
+                    <div class="list-item">Context size: Reduce context object size if storing large data</div>
+                </div>
+
+                <div class="expand-section" onclick="toggleExpand(this)">
+                    <span><strong>Q: Redis connection pool exhausted</strong></span>
+                    <span class="expand-icon">▼</span>
+                </div>
+                <div class="expanded-content">
+                    <p><strong>A:</strong> Increase pool size in StateManager initialization:</p>
+                    <div class="code-block"><code>self.redis_client = <span class="keyword">await</span> redis.from_url(
+    self.redis_url,
+    decode_responses=True,
+    max_connections=<span class="number">50</span>  <span class="comment"># Increase from default 10</span>
+)</code></div>
+                </div>
+
+                <div class="expand-section" onclick="toggleExpand(this)">
+                    <span><strong>Q: Tool call ID mismatch error</strong></span>
+                    <span class="expand-icon">▼</span>
+                </div>
+                <div class="expanded-content">
+                    <p><strong>A:</strong> Ensure the <span class="inline-code">toolCallId</span> in the response matches the <span class="inline-code">id</span> from the request exactly. Vapi uses this to match calls to results.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p><strong>Vapi FastAPI State Manager v1.0</strong></p>
+        <p>Production-ready implementation for voice AI appointment booking systems</p>
+        <p style="font-size: 12px; color: var(--color-text-secondary);">Created Jan 2025 | <100ms latency target | Sub-10ms state lookups</p>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // Hide all tabs
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+
+            // Deactivate all buttons
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+
+            // Show selected tab and activate button
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function toggleExpand(element) {
+            const expandedContent = element.nextElementSibling;
+            const icon = element.querySelector('.expand-icon');
+
+            if (expandedContent && expandedContent.classList.contains('expanded-content')) {
+                expandedContent.classList.toggle('open');
+                icon.classList.toggle('open');
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Vapi State Manager documentation loaded');
+        });
+    </script>
+</body>
+</html>

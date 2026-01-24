@@ -30,11 +30,11 @@
 └─────────────────────────────────────────────────────────────────┘
                               ↓ (if not found)
 ┌─────────────────────────────────────────────────────────────────┐
-│  L2: SEMANTIC CACHE (Redis + Vector)            Latency: 50-100ms│
-│  ├─ Query-response pairs with embedding similarity              │
-│  ├─ "What's the price?" ≈ "How much?" → Same cached response    │
-│  └─ Similarity threshold: 0.85-0.90                              │
-│  TTL: 1-24 hours | Size: 100MB-1GB | Hit Rate: 70%+             │
+│  L2: SEMANTIC CACHE (Postgres `query_cache`)    Latency: 20-50ms │
+│  ├─ Built directly into Supabase (same DB as Knowledge Base)    │
+│  ├─ Hash or Vector match of query string                        │
+│  └─ "What's the price?" ≈ "How much?" → Same cached response    │
+│  TTL: 1-24 hours | Hit Rate: 70%+                               │
 └─────────────────────────────────────────────────────────────────┘
                               ↓ (if cache miss)
 ┌─────────────────────────────────────────────────────────────────┐
@@ -93,23 +93,35 @@
 
 ## L2: Semantic Cache Configuration
 
-### Tools
+### Implementation: Postgres-Native
 
-| Tool | Implementation | Cost |
-|------|----------------|------|
-| **GPTCache + Redis** | ~100 lines Python | Self-hosted |
-| **LangCache** | Managed REST API | ~$50/mo |
-| **Spring AI + Redis** | Java/Spring Boot | Self-hosted |
+We chose to implement the Semantic Cache directly in Postgres (`query_cache` table) to simplify infrastructure. This avoids managing a separate Redis vector instance.
 
-### Tuning Parameters
+```sql
+CREATE TABLE query_cache (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  query_hash BYTEA UNIQUE NOT NULL, -- SHA256 of normalized query
+  answer TEXT NOT NULL,
+  confidence NUMERIC,
+  last_accessed TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**Why this wins:**
+- **Zero extra latency:** No network hop to external cache; it lives next to the data.
+- **Atomic:** Updates to knowledge base can instantly invalidate cache in the same transaction.
+- **Cost:** Included in Supabase plan.
+
+### Tuning Parameters (`query_cache` table)
 
 ```yaml
 similarity_threshold: 0.88      # Stricter = fewer false positives
-cache_size: 50000               # Query-response pairs
-embedding_model: "all-MiniLM-L6-v2"  # Fast, domain-tunable
-ttl_static: 86400               # 24h for property data
-ttl_availability: 3600          # 1h for pricing/dates
+match_count: 1                  # Return only the best match
+embedding_model: "text-embedding-3-small" (or similar)
+ttl_hours: 24                   # 24h for property data
 ```
+
+*(Note: Redis migration planned only if Postgres latency consistently exceeds 100ms)*
 
 ### Real Estate FAQ Pre-Warming
 
@@ -183,7 +195,10 @@ Turn 2: [Reuse cached prefix]
 
 - **Effort:** 2-4 weeks
 - **ROI:** 50-75% latency reduction, 60-70% cost savings
-- **Stack:** Redis + LangChain or LangCache
+- **Effort:** 2-4 weeks
+- **ROI:** 50-75% latency reduction, 60-70% cost savings
+- **Stack:** Supabase `query_cache` (Postgres)
+  - *Redis reserved for Calendar Locking*
 
 ### Phase 2: LLM Response Caching (L3)
 
