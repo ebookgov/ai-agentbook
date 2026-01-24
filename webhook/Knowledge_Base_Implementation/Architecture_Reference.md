@@ -98,4 +98,8 @@ graph TD
 
 * **PII:** Email/Phone stored only in secured Postgres (Supabase) and Google Calendar.
 * **Concurrency:** Redis locking prevents race conditions on high-volume calls.
-* **Timezones:** Hardcoded to `America/Phoenix` to prevent scheduling errors.
+* **Timezones:** Strict geographic compliance required.
+  * **Default:** `America/Phoenix` (MST year-round, UTC-7).
+  * **Coverage (No DST):** Correct for Phoenix, Tucson, **Flagstaff**, Yuma, Prescott, and the Hopi Reservation.
+  * **Exception (Has DST):** The Navajo Nation (northeastern AZ) observes Daylight Saving Time. If serving this region, dynamic switching to `America/Denver` (MDT) during summer is required.
+  * **Implementation:** Backend logic defaults to `ZoneInfo("America/Phoenix")` to guarantee stability for 90% of AZ use cases.
