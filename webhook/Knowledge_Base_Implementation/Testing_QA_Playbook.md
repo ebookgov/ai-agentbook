@@ -10,8 +10,17 @@ Run these local tests before committing code.
 
 **Test Case: Availability Check**
 
-* **Input:** `POST /check-availability` with `{date: "next Tuesday"}`
-* **Expected:** JSON list of slots in Arizona time.
+* **Input:** `POST /check-availability`
+
+    ```json
+    {
+      "date_start": "2026-02-01T09:00:00Z",
+      "date_end": "2026-02-01T17:00:00Z",
+      "caller_timezone": "EST"
+    }
+    ```
+
+* **Expected:** JSON list of slots in Arizona time (`voice_string`: "Tuesday...").
 * **Audit:** Verify `voice_string` is readable (e.g., "Tuesday the 24th at 3pm", NOT "2024-01-24T15:00").
 
 **Test Case: State Transition**
