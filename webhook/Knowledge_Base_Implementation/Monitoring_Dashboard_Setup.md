@@ -12,27 +12,17 @@
 
 Since our RAG and Booking data live in Supabase, their dashboard is your primary monitoring tool.
 
-### A. Business Metrics (SQL Editor)
+### A. Business Metrics
 
-Run these on your `bookings` table:
+Since the current backend version syncs directly to **Google Calendar** (and not a SQL table), monitor bookings via:
 
-**Booking Volume & Status**
+1. **Google Calendar UI:** Check for events titled "Tour: [Lead Name]".
+2. **Vapi Dashboard:** Filter calls by `tool: book_appointment` success.
 
-```sql
-SELECT
-  date_trunc('day', created_at) as day,
-  status,
-  COUNT(*)
-FROM bookings
-GROUP BY day, status
-ORDER BY day DESC;
-```
+*(Note: Phase 2 will add a `bookings` table in Supabase for SQL analytics)*
 
 ### B. System Metrics (Supabase Dashboard)
 
-* **Latency:** Go to **Edge Functions** > `search-knowledge` > **Metrics**. Look at "Execution Time (P95)".
-* **Errors:** Go to **Logs** > **Edge Functions**. Filter for `status >= 500`.
-* Note: You cannot query execution logs via SQL directly without setting up a Log Drain. Use the UI Charts.
 * Go to **Edge Functions** > **search-knowledge** > **Logs**.
 * Filter for `error` to see any RAG failures.
 * Filter for `WARN` to see if fallback logic (Vector-only) is triggering.

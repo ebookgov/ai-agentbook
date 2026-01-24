@@ -23,6 +23,23 @@ Run these local tests before committing code.
 * **Expected:** JSON list of slots in Arizona time (`voice_string`: "Tuesday...").
 * **Audit:** Verify `voice_string` is readable (e.g., "Tuesday the 24th at 3pm", NOT "2024-01-24T15:00").
 
+**Test Case: Book Appointment**
+
+* **Input:** `POST /book-appointment`
+
+    ```json
+    {
+      "slot_time": "2026-02-01T14:00:00",
+      "call_id": "test-call-123",
+      "lead_name": "QA Tester",
+      "lead_email": "qa@test.com",
+      "lead_phone": "555-0199"
+    }
+    ```
+
+* **Expected:** `{"success": true, "event_id": "..."}`
+* **Audit:** Check Google Calendar for "Tour: QA Tester".
+
 **Test Case: State Transition**
 
 * **Input:** User says "Book it" during `QUALIFICATION` state.

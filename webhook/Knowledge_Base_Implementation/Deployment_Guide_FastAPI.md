@@ -72,7 +72,6 @@ Configure these on your PaaS provider (Railway, Render, AWS).
 | Variable | Description | Example / Format |
 |----------|-------------|------------------|
 | `PORT` | Service port | `8000` |
-| `DATABASE_URL` | Supabase Connection String | `postgres://user:pass@host:5432/postgres?sslmode=require` |
 | `REDIS_URL` | Redis Connection String | `redis://default:pass@host:6379/0` |
 | `AGENT_EMAIL` | Google Calender Account | `agent@your-company.com` |
 | `GOOGLE_CREDS_JSON` | **CRITICAL:** Base64 encoded JSON | (See section 3) |
