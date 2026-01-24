@@ -39,10 +39,12 @@ async function setupSubscriptions() {
 
     ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
     
-    -- Policy: Allow read access to everyone (simplified for demo, usually restricted to owner/admin)
-    -- We drop first to avoid "policy already exists" errors if re-running
+    -- Policy: Restrict access to Service Role (backend) and Dashboard only.
+    -- We drop the insecure public access policy if it exists from previous setups.
     DROP POLICY IF EXISTS "Enable read access for all users" ON public.subscriptions;
-    CREATE POLICY "Enable read access for all users" ON public.subscriptions FOR SELECT USING (true);
+    
+    -- No public policies are created, which handles "Default Deny" for anon/authenticated users.
+    -- Only the Service Role (used by this webhook server) will have access.
     
     COMMENT ON TABLE public.subscriptions IS 'Tracks PayPal subscriptions for AI Agent access';
   `;
