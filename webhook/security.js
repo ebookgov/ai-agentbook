@@ -14,6 +14,9 @@ const PAYPAL_API_BASE = PAYPAL_MODE === 'live'
   ? 'https://api-m.paypal.com' 
   : 'https://api-m.sandbox.paypal.com';
 
+// Export for use in server.js
+module.exports.PAYPAL_API_BASE = PAYPAL_API_BASE;
+
 // Cache for PayPal OAuth token
 let paypalTokenCache = {
   token: null,
@@ -226,5 +229,6 @@ async function verifyPayPalWebhookSignature(req) {
 module.exports = {
   requireApiKey,
   verifyPayPalWebhookSignature,
-  getPayPalAccessToken
+  getPayPalAccessToken,
+  PAYPAL_API_BASE
 };

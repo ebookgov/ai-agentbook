@@ -9,7 +9,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
-const { requireApiKey, verifyPayPalWebhookSignature } = require('./security');
+const { requireApiKey, verifyPayPalWebhookSignature, getPayPalAccessToken, PAYPAL_API_BASE } = require('./security');
 require('dotenv').config({ path: '../.env' });
 
 // Ensure PayPal Webhook ID is configured in production
@@ -890,9 +890,35 @@ async function handlePaymentCompleted(resource) {
 
   console.log(`💰 Payment completed: ${amount} ${currency} for subscription ${billingAgreementId}`);
 
-  // Calculate next billing period (typically 1 month from now)
-  const nextBillingDate = new Date();
+  // Default fallback: 1 month from payment creation time (or now)
+  // Using resource.create_time is better than new Date() to avoid drift from webhook delays
+  let nextBillingDate = new Date(resource.create_time || Date.now());
   nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+
+  // Attempt to get authoritative next_billing_time from PayPal API
+  try {
+    const accessToken = await getPayPalAccessToken();
+    if (accessToken && billingAgreementId) {
+      const response = await fetch(`${PAYPAL_API_BASE}/v1/billing/subscriptions/${billingAgreementId}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const subData = await response.json();
+        if (subData.billing_info && subData.billing_info.next_billing_time) {
+          nextBillingDate = new Date(subData.billing_info.next_billing_time);
+          console.log(`✅ Retrieved accurate next billing date from PayPal: ${nextBillingDate.toISOString()}`);
+        }
+      } else {
+        console.warn(`⚠️ Failed to fetch subscription details: ${response.status}`);
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching accurate billing date (using fallback):', err.message);
+  }
 
   if (supabase && billingAgreementId) {
     const { error } = await supabase
