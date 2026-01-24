@@ -62,10 +62,87 @@ CREATE INDEX idx_demo_calls_caller_phone ON public.demo_calls(caller_phone);
 COMMENT ON TABLE public.demo_calls IS 'Stores all AI demo agent calls for EbookGov Real Estate Agent';
       `);
     } else if (checkError) {
-      console.error('Error checking table:', checkError.message);
+      console.error('Error checking table "demo_calls":', checkError.message);
     } else {
-      console.log('✅ Table "demo_calls" exists and is accessible!');
-      console.log('Current record count:', existingTable?.length || 0);
+      console.log('✅ Table "demo_calls" exists.');
+    }
+
+    // ---------------------------------------------------------
+    // 2. Setup 'subscriptions' table
+    // ---------------------------------------------------------
+    const { error: subCheckError } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .limit(1);
+
+    if (subCheckError && subCheckError.code === '42P01') {
+      console.log('\nCreating table "subscriptions"...');
+      // Note: In a real Supabase setup, we'd run raw SQL via the dashboard or a migration tool.
+      // Since the JS client can't run DDL, we'll log the SQL for the user.
+      console.log('⚠️  Table "subscriptions" does not exist. Please run this SQL in Supabase Dashboard:');
+      console.log(`
+-- Table for storing PayPal subscriptions
+CREATE TABLE public.subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    subscription_id TEXT UNIQUE NOT NULL,
+    user_email TEXT,
+    plan_id TEXT,
+    status TEXT, -- active, cancelled, suspended, past_due
+    start_time TIMESTAMPTZ,
+    current_period_end TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_subscriptions_sub_id ON public.subscriptions(subscription_id);
+CREATE INDEX idx_subscriptions_email ON public.subscriptions(user_email);
+      `);
+    } else if (subCheckError) {
+      console.error('Error checking table "subscriptions":', subCheckError.message);
+    } else {
+      console.log('✅ Table "subscriptions" exists.');
+    }
+
+    // ---------------------------------------------------------
+    // 3. Setup 'properties' table
+    // ---------------------------------------------------------
+    const { error: propCheckError } = await supabase
+      .from('properties')
+      .select('id')
+      .limit(1);
+
+    if (propCheckError && propCheckError.code === '42P01') {
+      console.log('\nCreating table "properties"...');
+      console.log('⚠️  Table "properties" does not exist. Please run this SQL in Supabase Dashboard:');
+      console.log(`
+-- Table for real estate properties
+CREATE TABLE public.properties (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    property_id TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    price NUMERIC,
+    price_formatted TEXT,
+    acreage TEXT,
+    location JSONB, -- { city, state, zip, address }
+    features JSONB, -- { bedrooms, bathrooms, sqft, structure }
+    highlights TEXT[],
+    financing JSONB,
+    water_rights JSONB,
+    solar_lease JSONB,
+    hoa JSONB,
+    tax_info JSONB,
+    status TEXT DEFAULT 'active',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_properties_id ON public.properties(property_id);
+CREATE INDEX idx_properties_name ON public.properties USING GIN (to_tsvector('english', name));
+      `);
+    } else if (propCheckError) {
+      console.error('Error checking table "properties":', propCheckError.message);
+    } else {
+      console.log('✅ Table "properties" exists.');
     }
 
     // Test insert

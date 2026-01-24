@@ -12,6 +12,11 @@ const crypto = require('crypto');
 const { requireApiKey, verifyPayPalWebhookSignature } = require('./security');
 require('dotenv').config({ path: '../.env' });
 
+// Ensure PayPal Webhook ID is configured in production
+if (process.env.NODE_ENV === 'production' && !process.env.PAYPAL_WEBHOOK_ID) {
+  console.warn('⚠️  PAYPAL_WEBHOOK_ID is not set in production environment. Webhook signature verification will be skipped!');
+}
+
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
@@ -224,8 +229,8 @@ async function handleBookShowing(parameters, fullPayload) {
       };
     }
 
-    const callId = fullPayload?.message?.call?.id || `CALL-${Date.now()}`;
-    const bookingId = `BOOKING-${Date.now()}`;
+    const callId = fullPayload?.message?.call?.id || crypto.randomUUID();
+    const bookingId = crypto.randomUUID();
 
     // Create/update call record in Supabase
     if (supabase) {
@@ -300,7 +305,7 @@ async function handleTransferToHuman(parameters, fullPayload) {
       };
     }
 
-    const callId = fullPayload?.message?.call?.id || `CALL-${Date.now()}`;
+    const callId = fullPayload?.message?.call?.id || crypto.randomUUID();
     const textNowPhone = process.env.TEXT_NOW_PHONE_NUMBER;
 
     // Validate TEXT_NOW_PHONE_NUMBER format and presence
@@ -339,7 +344,7 @@ async function handleTransferToHuman(parameters, fullPayload) {
       return {
         success: true,
         message: 'Transfer initiated',
-        transferId: `TRANSFER-${Date.now()}`,
+        transferId: crypto.randomUUID(),
         // Vapi transfer destination format
         destination: {
           type: 'number',
@@ -385,10 +390,18 @@ async function handleGetPropertyDetails(parameters) {
       // For a robust search, we'd query Supabase with `ilike` on name/city
       // Let's do a quick fallback search if ID lookup failed
       if (supabase) {
+        // Sanitize input: remove potentially dangerous characters for string interpolation
+        // Allows alphanumeric, spaces, dashes (common in addresses/names)
+        const safeId = propertyId.replace(/[^a-zA-Z0-9\s-]/g, '');
+        
+        if (!safeId) {
+             return { success: false, message: 'Invalid property ID format' };
+        }
+
         const { data: searchData } = await supabase
           .from('properties')
           .select('*')
-          .or(`name.ilike.%${propertyId}%,location->>city.ilike.%${propertyId}%`)
+          .or(`name.ilike.%${safeId}%,location->>city.ilike.%${safeId}%`)
           .limit(1)
           .single();
           
