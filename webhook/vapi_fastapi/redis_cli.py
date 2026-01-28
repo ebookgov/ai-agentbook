@@ -12,7 +12,7 @@ load_dotenv()
 REDIS_URL = os.getenv("REDIS_URL")
 
 if not REDIS_URL:
-    print("❌ Error: REDIS_URL not found in environment variables.")
+    print("Error: REDIS_URL not found in environment variables.")
     print("   Please set REDIS_URL in your .env file or environment.")
     sys.exit(1)
 
@@ -83,7 +83,7 @@ async def execute_command(client, cmd_parts):
         print(f"(error) {str(e)}")
 
 async def main():
-    print(f"🔌 Connecting to Redis...")
+    print(f"Connecting to Redis...")
     
     try:
         client = redis.from_url(
@@ -92,9 +92,9 @@ async def main():
             decode_responses=True
         )
         await client.ping()
-        print(f"✅ Connected to {REDIS_URL.split('@')[-1] if '@' in REDIS_URL else 'Redis'}")
+        print(f"Connected to {REDIS_URL.split('@')[-1] if '@' in REDIS_URL else 'Redis'}")
     except Exception as e:
-        print(f"❌ Connection Failed: {e}")
+        print(f"Connection Failed: {e}")
         return
 
     # If arguments provided, run single command
@@ -104,7 +104,7 @@ async def main():
         return
 
     # Interactive Mode
-    print("🚀 Entering Interactive Mode (type 'exit' to quit)")
+    print("Entering Interactive Mode (type 'exit' to quit)")
     print("--------------------------------------------------")
     
     while True:
@@ -128,5 +128,6 @@ async def main():
 
 if __name__ == "__main__":
     if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        # asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        pass
     asyncio.run(main())
