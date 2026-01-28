@@ -13,7 +13,11 @@ class CallContext(BaseModel):
 class StateManager:
     """
     Transient state manager with TTL cleanup
-    Stores state in-memory for <10ms access latency
+    Stores state in-memory for <10ms access latency.
+    
+    WARNING: This implementation is in-memory only. It will NOT share state across
+    multiple worker processes or server instances. For production scaling,
+    this class must be refactored to use Redis or a similar shared store.
     """
 
     VALID_STATES = {"QUALIFICATION", "BOOKING", "CONFIRMATION"}

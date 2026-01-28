@@ -2,6 +2,7 @@ import uuid
 import asyncio
 from datetime import datetime, timedelta, timezone as dt_timezone
 from typing import Optional, Tuple
+import logging
 import redis.asyncio as redis
 
 class SlotManager:
@@ -100,7 +101,7 @@ class SlotManager:
             return True
         
         except Exception as e:
-            print(f"Error releasing hold: {str(e)}")
+            logging.error(f"Error releasing hold: {str(e)}", exc_info=True)
             return False
     
     async def extend_hold(
@@ -137,5 +138,5 @@ class SlotManager:
             return True
         
         except Exception as e:
-            print(f"Error extending hold: {str(e)}")
+            logging.error(f"Error extending hold: {str(e)}", exc_info=True)
             return False

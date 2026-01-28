@@ -4,6 +4,7 @@ from pydantic import BaseModel, EmailStr
 from typing import List, Dict, Any, Optional
 import json
 import os
+import logging
 import aiohttp
 from .state_manager import state_manager
 from .calendar_client import GoogleCalendarClient
@@ -39,7 +40,7 @@ async def lifespan(app: FastAPI):
         
         print("✅ Services initialized")
     except Exception as e:
-        print(f"⚠️ Service initialization warning: {e}")
+        logging.error(f"⚠️ Service initialization warning: {e}")
 
     yield
     
@@ -65,6 +66,13 @@ class BookAppointmentRequest(BaseModel):
     lead_email: EmailStr
     lead_phone: str
     confirmation_sms: str = ""
+
+class VapiWebhookRequest(BaseModel):
+    """
+    Pydantic model for incoming Vapi webhooks.
+    We use Dict[str, Any] for the message because Vapi payloads vary by type.
+    """
+    message: Dict[str, Any]
 
 # --- Calendar Endpoints ---
 
@@ -98,7 +106,7 @@ async def check_availability(req: CheckAvailabilityRequest):
             ]
         }
     except Exception as e:
-        print(f"Availability error: {e}")
+        logging.error(f"Availability error: {e}", exc_info=True)
         raise HTTPException(500, str(e))
 
 @app.post("/book-appointment")
@@ -137,7 +145,7 @@ async def book_appointment(req: BookAppointmentRequest, background_tasks: Backgr
         return {"success": True, "event_id": event_id, "message": f"Confirmed for {slot.to_voice_string()}"}
 
     except Exception as e:
-        print(f"Booking error: {e}")
+        logging.error(f"Booking error: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
 
 # System prompts for each state
