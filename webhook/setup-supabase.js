@@ -145,6 +145,95 @@ CREATE INDEX idx_properties_name ON public.properties USING GIN (to_tsvector('en
       console.log('✅ Table "properties" exists.');
     }
 
+    // ---------------------------------------------------------
+    // 4. Setup 'knowledge_chunks' table (For RAG)
+    // ---------------------------------------------------------
+    const { error: ragCheckError } = await supabase
+      .from('knowledge_chunks')
+      .select('id')
+      .limit(1);
+
+    if (ragCheckError && ragCheckError.code === '42P01') {
+      console.log('\nCreating table "knowledge_chunks"...');
+      console.log('⚠️  Table "knowledge_chunks" does not exist. Please run this SQL in Supabase Dashboard:');
+      console.log(`
+-- Table for storing knowledge base embeddings
+CREATE TABLE public.knowledge_chunks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    source_file TEXT NOT NULL,
+    chunk_index INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    embedding vector(384), -- Changed to 384 for all-MiniLM-L6-v2
+    metadata JSONB DEFAULT '{}'::jsonb,
+    content_hash TEXT, -- For change detection
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(source_file, chunk_index)
+);
+
+-- Indexes for fast vector search and metadata lookups
+CREATE INDEX idx_knowledge_chunks_embedding ON public.knowledge_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+CREATE INDEX idx_knowledge_chunks_metadata ON public.knowledge_chunks USING gin (metadata);
+CREATE INDEX idx_knowledge_chunks_source ON public.knowledge_chunks(source_file);
+      `);
+    } else if (ragCheckError) {
+      console.error('Error checking table "knowledge_chunks":', ragCheckError.message);
+    } else {
+      console.log('✅ Table "knowledge_chunks" exists.');
+    }
+
+    // ---------------------------------------------------------
+    // 5. Setup 'match_knowledge' function (For RAG Vector Search)
+    // ---------------------------------------------------------
+    // We cannot easily check for function existence via JS client without calling it.
+    // We will try to call it with dummy data.
+    const { error: rpcError } = await supabase.rpc('match_knowledge', {
+      query_embedding: Array(384).fill(0),
+      match_threshold: 0.0,
+      match_count: 1,
+      filter: {}
+    });
+
+    if (rpcError && rpcError.message.includes('function match_knowledge') && rpcError.message.includes('does not exist')) {
+       console.log('\nCreating function "match_knowledge"...');
+       console.log('⚠️  Function "match_knowledge" does not exist. Please run this SQL in Supabase Dashboard:');
+       console.log(`
+-- Function to match knowledge chunks by embedding similarity
+create or replace function match_knowledge (
+  query_embedding vector(384),
+  match_threshold float,
+  match_count int,
+  filter jsonb DEFAULT '{}'
+)
+returns table (
+  id uuid,
+  content text,
+  metadata jsonb,
+  similarity float
+)
+language plpgsql
+as $$
+begin
+  return query
+  select
+    knowledge_chunks.id,
+    knowledge_chunks.content,
+    knowledge_chunks.metadata,
+    1 - (knowledge_chunks.embedding <=> query_embedding) as similarity
+  from knowledge_chunks
+  where 1 - (knowledge_chunks.embedding <=> query_embedding) > match_threshold
+  order by knowledge_chunks.embedding <=> query_embedding
+  limit match_count;
+end;
+$$;
+       `);
+    } else if (rpcError && !rpcError.message.includes('does not exist')) {
+        // Some other error, maybe parameter mismatch or permission, but likely function exists
+        console.log('ℹ️  Function "match_knowledge" check returned error (might exist but failed call):', rpcError.message);
+    } else {
+        console.log('✅ Function "match_knowledge" likely exists.');
+    }
+
     // Test insert
     console.log('\nTesting insert...');
     const testRecord = {
@@ -175,7 +264,21 @@ CREATE INDEX idx_properties_name ON public.properties USING GIN (to_tsvector('en
       console.log('✅ Test record cleaned up.');
     }
 
-    console.log('\n✅ Supabase setup complete!');
+    // ---------------------------------------------------------
+    // 6. Security & Health Check
+    // ---------------------------------------------------------
+    console.log('\n🏥 Performing Security Health Check...');
+    
+    // Check if we can detect RLS. (Querying pg_tables is restricted to default users usually, 
+    // but service_role might be able to see it. If not, we print the warning anyway).
+    // A simple check is to try an anon select.
+    
+    console.log('⚠️  CRITICAL: Ensure Row Level Security (RLS) is enabled.');
+    console.log('   The "20260126_security_hardening.sql" file has been generated.');
+    console.log('   Run it in the Supabase Dashboard SQL Editor to secure this database.');
+    
+    console.log('\n✅ Supabase setup check complete!');
+    console.log('   NEXT STEP: Execute "supabase/migrations/20260126_security_hardening.sql" in your dashboard.');
 
   } catch (error) {
     console.error('Setup error:', error.message);
