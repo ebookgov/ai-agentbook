@@ -1,7 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, Optional, Any
 from pydantic import BaseModel
-import asyncio
+import logging
+import redis.asyncio as redis
+import os
 
 class CallContext(BaseModel):
     """Per-call context storage"""
@@ -12,94 +14,125 @@ class CallContext(BaseModel):
 
 class StateManager:
     """
-    Transient state manager with TTL cleanup
-    Stores state in-memory for <10ms access latency.
-    
-    WARNING: This implementation is in-memory only. It will NOT share state across
-    multiple worker processes or server instances. For production scaling,
-    this class must be refactored to use Redis or a similar shared store.
+    Redis-backed state manager for Vapi calls.
+    Uses Redis for state persistence across workers/restarts.
     """
 
     VALID_STATES = {"QUALIFICATION", "BOOKING", "CONFIRMATION"}
     
-    # State transition graph: which states can transition to which
+    # State transition graph
     TRANSITIONS = {
         "QUALIFICATION": {"BOOKING"},
         "BOOKING": {"CONFIRMATION"},
         "CONFIRMATION": set()  # Terminal state
     }
     
-    def __init__(self, ttl_minutes: int = 60):
-        self.states: Dict[str, CallContext] = {}
-        self.ttl_minutes = ttl_minutes
-        self.cleanup_task = None
+    def __init__(self, redis_url: Optional[str] = None):
+        self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        self.redis_client: Optional[redis.Redis] = None
+        self.ttl_seconds = 3600 # 1 hour TTL
         
-    def start_cleanup_task(self):
-        """Start background TTL cleanup"""
-        if not self.cleanup_task:
-            self.cleanup_task = asyncio.create_task(self._cleanup_expired())
-    
-    async def _cleanup_expired(self):
-        """Remove expired call states every 5 minutes"""
-        while True:
-            await asyncio.sleep(300)  # 5 minutes
-            now = datetime.utcnow()
-            expired = [
-                call_id for call_id, state in self.states.items()
-                if now - state.last_activity > timedelta(minutes=self.ttl_minutes)
-            ]
-            for call_id in expired:
-                del self.states[call_id]
-    
-    def init_call(self, call_id: str, initial_state: str = "QUALIFICATION") -> CallContext:
-        """Initialize call state on first webhook hit"""
-        if call_id not in self.states:
-            self.states[call_id] = CallContext(
-                state=initial_state,
-                context={},
-                timestamp=datetime.utcnow(),
-                last_activity=datetime.utcnow()
+    async def connect(self):
+        """Initialize Redis connection."""
+        if not self.redis_client:
+            self.redis_client = await redis.from_url(
+                self.redis_url,
+                encoding="utf-8",
+                decode_responses=True,
+                health_check_interval=30
             )
-        return self.states[call_id]
+
+    async def disconnect(self):
+        """Close Redis connection."""
+        if self.redis_client:
+            await self.redis_client.close()
+
+    def _get_key(self, call_id: str) -> str:
+        return f"vapi:call:{call_id}"
+
+    async def init_call(self, call_id: str, initial_state: str = "QUALIFICATION") -> CallContext:
+        """Initialize call state in Redis."""
+        if not self.redis_client:
+            await self.connect()
+
+        key = self._get_key(call_id)
+        
+        # Check if exists
+        existing = await self.redis_client.get(key)
+        if existing:
+            return CallContext.model_validate_json(existing)
+
+        # Create new
+        ctx = CallContext(
+            state=initial_state,
+            context={},
+            timestamp=datetime.utcnow(),
+            last_activity=datetime.utcnow()
+        )
+        
+        await self.redis_client.set(
+            key, 
+            ctx.model_dump_json(),
+            ex=self.ttl_seconds
+        )
+        return ctx
     
-    def get_state(self, call_id: str) -> Optional[CallContext]:
-        """Retrieve state with O(1) lookup"""
-        state = self.states.get(call_id)
-        if state:
-            state.last_activity = datetime.utcnow()
-        return state
+    async def get_state(self, call_id: str) -> Optional[CallContext]:
+        """Retrieve state from Redis."""
+        if not self.redis_client:
+            await self.connect()
+
+        key = self._get_key(call_id)
+        data = await self.redis_client.get(key)
+        
+        if data:
+            ctx = CallContext.model_validate_json(data)
+            return ctx
+        return None
     
-    def transition_state(self, call_id: str, new_state: str, 
+    async def transition_state(self, call_id: str, new_state: str, 
                         context_update: Optional[Dict] = None) -> bool:
         """
-        Validate and execute state transition
-        Returns True if successful, False if invalid
+        Validate and execute state transition.
         """
-        if call_id not in self.states:
+        if not self.redis_client:
+            await self.connect()
+
+        key = self._get_key(call_id)
+        
+        data = await self.redis_client.get(key)
+        if not data:
             return False
+            
+        current_ctx = CallContext.model_validate_json(data)
         
-        current_state = self.states[call_id]
-        
-        # Validate state exists
+        # Validate logic
         if new_state not in self.VALID_STATES:
+            logging.warning(f"Invalid state: {new_state}")
             return False
+            
+        if new_state not in self.TRANSITIONS.get(current_ctx.state, set()):
+             logging.warning(f"Invalid transition: {current_ctx.state} -> {new_state}")
+             return False
         
-        # Validate transition is allowed
-        if new_state not in self.TRANSITIONS.get(current_state.state, set()):
-            return False
-        
-        # Update state
-        current_state.state = new_state
+        # Update
+        current_ctx.state = new_state
         if context_update:
-            current_state.context.update(context_update)
-        current_state.last_activity = datetime.utcnow()
+            current_ctx.context.update(context_update)
+        current_ctx.last_activity = datetime.utcnow()
         
+        await self.redis_client.set(
+            key,
+            current_ctx.model_dump_json(),
+            ex=self.ttl_seconds
+        )
         return True
     
-    def cleanup_call(self, call_id: str):
-        """Explicitly remove call state (call ended)"""
-        if call_id in self.states:
-            del self.states[call_id]
+    async def cleanup_call(self, call_id: str):
+        """Remove call state."""
+        if not self.redis_client:
+            await self.connect()
+        await self.redis_client.delete(self._get_key(call_id))
 
 # Singleton instance
 state_manager = StateManager()

@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from pydantic import BaseModel, EmailStr
-from typing import List, Dict, Any, Optional
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from pydantic import BaseModel, EmailStr, Field
+from typing import List, Dict, Any, Optional, Union, Literal
 import json
 import os
 import logging
 import aiohttp
+from datetime import datetime
 from .state_manager import state_manager
 from .calendar_client import GoogleCalendarClient
 from .slot_manager import SlotManager
@@ -15,9 +16,13 @@ from .timezone_utils import (
 )
 
 # Config
-GOOGLE_CREDS_PATH = os.getenv("GOOGLE_CREDS_PATH", "google-creds.json")
-AGENT_EMAIL = os.getenv("AGENT_EMAIL", "agent@example.com")
+GOOGLE_CREDS_PATH = os.getenv("GOOGLE_CREDS_PATH")
+AGENT_EMAIL = os.getenv("AGENT_EMAIL")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+# Security Check
+if not GOOGLE_CREDS_PATH or not AGENT_EMAIL:
+    logging.warning("⚠️ Critical secrets missing: GOOGLE_CREDS_PATH or AGENT_EMAIL not set.")
 
 # Global Clients
 calendar_client: Optional[GoogleCalendarClient] = None
@@ -28,19 +33,22 @@ slot_manager: Optional[SlotManager] = None
 async def lifespan(app: FastAPI):
     # Startup
     global calendar_client, slot_manager
-    state_manager.start_cleanup_task()
     
     # Initialize implementation clients
     try:
-        if os.path.exists(GOOGLE_CREDS_PATH):
+        await state_manager.connect()
+        
+        if GOOGLE_CREDS_PATH and os.path.exists(GOOGLE_CREDS_PATH):
             calendar_client = GoogleCalendarClient(GOOGLE_CREDS_PATH, AGENT_EMAIL)
+        else:
+            logging.warning("Google Calendar credentials not found. Calendar features disabled.")
         
         slot_manager = SlotManager(REDIS_URL)
-        # await slot_manager.connect() # Connect on first use or here
+        await slot_manager.connect()
         
         print("✅ Services initialized")
     except Exception as e:
-        logging.error(f"⚠️ Service initialization warning: {e}")
+        logging.error(f"⚠️ Service initialization warning: {e}", exc_info=True)
 
     yield
     
@@ -49,10 +57,11 @@ async def lifespan(app: FastAPI):
         await calendar_client.close()
     if slot_manager:
         await slot_manager.disconnect()
+    await state_manager.disconnect()
 
 app = FastAPI(title="Vapi State Manager & Calendar", lifespan=lifespan)
 
-# --- Calendar Models ---
+# --- Models ---
 
 class CheckAvailabilityRequest(BaseModel):
     date_start: str # ISO 8601 UTC
@@ -67,12 +76,39 @@ class BookAppointmentRequest(BaseModel):
     lead_phone: str
     confirmation_sms: str = ""
 
+# Vapi Models
+class VapiCall(BaseModel):
+    id: str
+    orgId: str
+
+class VapiAssistantRequestMessage(BaseModel):
+    type: Literal["assistant-request"]
+    call: VapiCall
+
+class VapiToolCall(BaseModel):
+    id: str
+    type: Literal["function"]
+    function: Dict[str, Any] 
+
+class VapiToolCallListMessage(BaseModel):
+    type: Literal["tool-calls"]
+    call: VapiCall
+    toolCallList: List[Dict[str, Any]] # Vapi sends tool calls as a list of dicts
+
+class VapiEndOfCallReportMessage(BaseModel):
+    type: Literal["end-of-call-report"]
+    call: VapiCall
+
 class VapiWebhookRequest(BaseModel):
     """
-    Pydantic model for incoming Vapi webhooks.
-    We use Dict[str, Any] for the message because Vapi payloads vary by type.
+    Strictly typed Vapi webhook wrapper.
     """
-    message: Dict[str, Any]
+    message: Union[
+        VapiAssistantRequestMessage,
+        VapiToolCallListMessage,
+        VapiEndOfCallReportMessage,
+        Dict[str, Any] # Fallback for other message types
+    ] = Field(..., discriminator='type')
 
 # --- Calendar Endpoints ---
 
@@ -105,9 +141,11 @@ async def check_availability(req: CheckAvailabilityRequest):
                 } for slot in available
             ]
         }
+    except ValueError as e:
+        raise HTTPException(400, f"Invalid date format: {e}")
     except Exception as e:
         logging.error(f"Availability error: {e}", exc_info=True)
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, "Internal server error")
 
 @app.post("/book-appointment")
 async def book_appointment(req: BookAppointmentRequest, background_tasks: BackgroundTasks):
@@ -184,8 +222,8 @@ Lead details: {{CONTEXT}}"""
 
 async def handle_assistant_request(call_id: str) -> Dict:
     """Initialize call state and return starting prompt"""
-    # Initialize state
-    state_manager.init_call(call_id, initial_state="QUALIFICATION")
+    # Initialize state (await is now required)
+    await state_manager.init_call(call_id, initial_state="QUALIFICATION")
 
     # Return initial assistant config
     return {
@@ -207,17 +245,27 @@ async def handle_assistant_request(call_id: str) -> Dict:
         }
     }
 
-async def handle_tool_calls(call_id: str, tool_calls: List[Dict]) -> Dict:
+async def handle_tool_calls(call_id: str, tool_calls_data: List[Dict]) -> Dict:
     """Process state transition tool calls"""
-    if not tool_calls:
+    if not tool_calls_data:
         return {"results": []}
 
     results = []
     
-    for tool_call in tool_calls:
-        tool_name = tool_call.get("name")
+    for tool_call in tool_calls_data:
+        tool_name = tool_call.get("function", {}).get("name")
         tool_id = tool_call.get("id")
-        parameters = tool_call.get("parameters", {})
+        
+        # Tool parameters string parsing (Vapi sends as json string sometimes, but let's assume dict for now if parsed)
+        # Actually Vapi usually sends 'arguments' as a JSON string inside 'function'. 
+        arguments = tool_call.get("function", {}).get("arguments", "{}")
+        if isinstance(arguments, str):
+            try:
+                parameters = json.loads(arguments)
+            except:
+                parameters = {}
+        else:
+            parameters = arguments
         
         if tool_name == "update_system_prompt":
             # Extract parameters
@@ -225,14 +273,14 @@ async def handle_tool_calls(call_id: str, tool_calls: List[Dict]) -> Dict:
             context_update = parameters.get("context", {})
             
             # Attempt state transition
-            success = state_manager.transition_state(call_id, new_state, context_update)
+            success = await state_manager.transition_state(call_id, new_state, context_update)
             
             if success:
                 # Get updated state
-                call_state = state_manager.get_state(call_id)
+                call_state = await state_manager.get_state(call_id)
                 
                 # Generate new system prompt with injected context
-                prompt_template = STATE_PROMPTS[new_state]
+                prompt_template = STATE_PROMPTS.get(new_state, "")
                 context_str = json.dumps(call_state.context) if call_state else "{}"
                 new_prompt = prompt_template.replace("{{CONTEXT}}", context_str)
                 
@@ -281,30 +329,23 @@ async def handle_tool_calls(call_id: str, tool_calls: List[Dict]) -> Dict:
 
 async def handle_end_of_call(call_id: str):
     """Cleanup call state when call ends"""
-    state_manager.cleanup_call(call_id)
+    await state_manager.cleanup_call(call_id)
 
 @app.post("/vapi/state-webhook")
 async def handle_vapi_webhook(request: VapiWebhookRequest):
     """
     Main webhook endpoint for Vapi
-    Handles assistant-request, tool-calls, and end-of-call-report
     """
-    message_type = request.message.get("type")
-    call_id = request.message.get("call", {}).get("id")
-
-    if not call_id:
-        raise HTTPException(status_code=400, detail="Missing call.id")
+    msg = request.message
     
-    # Route to appropriate handler
-    if message_type == "assistant-request":
-        return await handle_assistant_request(call_id)
+    if isinstance(msg, VapiAssistantRequestMessage):
+        return await handle_assistant_request(msg.call.id)
     
-    elif message_type == "tool-calls":
-        tool_calls = request.message.get("toolCallList", [])
-        return await handle_tool_calls(call_id, tool_calls)
+    elif isinstance(msg, VapiToolCallListMessage):
+        return await handle_tool_calls(msg.call.id, msg.toolCallList)
     
-    elif message_type == "end-of-call-report":
-        await handle_end_of_call(call_id)
+    elif isinstance(msg, VapiEndOfCallReportMessage):
+        await handle_end_of_call(msg.call.id)
         return {"status": "processed"}
     
     else:
